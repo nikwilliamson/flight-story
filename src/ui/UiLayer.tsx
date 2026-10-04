@@ -6,7 +6,6 @@ import { Rail } from './Rail'
 import { ScreenLayer } from './ScreenLayer'
 import { StoryCards } from './StoryCards'
 import { StoryHud } from './StoryHud'
-import { JumpDrop } from './JumpDrop'
 import { TabBar } from './TabBar'
 import { TabPanel } from './TabPanel'
 
@@ -21,13 +20,12 @@ export function UiLayer() {
 
   return (
     <>
-      {/* Phones: cards scroll in the space under the pinned globe, never over it. */}
-      <ScreenLayer priority={2} clip={layout.phone ? { x: 0, y: layout.stage.height, width, height: height - layout.stage.height } : null}>
+      {/* Phones: the text scrolls in the space under the pinned globe and dissolves into it as it rises. */}
+      <ScreenLayer priority={2} fade={layout.phone ? { from: layout.stage.height - 56, to: layout.stage.height + 40, bottom: 20 } : null}>
         <StoryCards layout={layout} viewport={height} />
         <TabPanel layout={layout} />
       </ScreenLayer>
       <ScreenLayer priority={3}>
-        <JumpDrop />
         <TabBar layout={layout} />
         <StoryHud stage={layout.stage} s={layout.scale} />
         {!layout.phone && <Rail width={width} height={height} />}

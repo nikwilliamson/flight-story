@@ -19,11 +19,14 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
     () => CHAPTERS.map((_, i) => (h: number) => setHeights((prev) => (prev[i] === h ? prev : Object.assign([...prev], { [i]: h })))),
     [],
   )
-  const column = layout.phone ? { top: layout.card.y, bottom: viewport - 16, centre: false } : { top: 0, bottom: viewport, centre: true }
+  // The reading line: a card takes over as its top crosses it. Phones read in the strip under the pinned globe.
+  const column = layout.phone
+    ? { top: layout.card.y, bottom: viewport - 16, centre: false, line: layout.card.y + (viewport - layout.card.y) * 0.3 }
+    : { top: 0, bottom: viewport, centre: true, line: viewport * 0.45 }
 
   const plan = useMemo(() => {
     if (CHAPTERS.some((_, i) => heights[i] === undefined)) return null
-    return planScroll(CHAPTERS.map((c, i) => ({ height: heights[i]!, travel: c.travel })), viewport, column)
+    return planScroll(CHAPTERS.map((_, i) => heights[i]!), column)
     // column is derived from layout and viewport
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heights, viewport, layout])
@@ -43,7 +46,7 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
     plan.segments.forEach((seg, i) => {
       const g = groups.current[i]
       if (!g) return
-      const top = cardTop(seg, y, viewport)
+      const top = cardTop(seg, y)
       g.position.set(layout.card.x, -top, 0)
       g.visible = top < viewport && top + seg.height > 0 && !(tabOpen && i === last)
     })
@@ -52,7 +55,7 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
   return (
     <>
       {CHAPTERS.map((chapter, i) => (
-        <StoryCard key={chapter.id} ref={(g) => void (groups.current[i] = g)} chapter={chapter} width={layout.card.width} s={layout.scale} opening={i === 0} onHeight={onHeight[i]} />
+        <StoryCard key={chapter.id} ref={(g) => void (groups.current[i] = g)} chapter={chapter} width={layout.card.width} s={layout.scale} bare={layout.phone} opening={i === 0} onHeight={onHeight[i]} />
       ))}
     </>
   )

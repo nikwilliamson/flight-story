@@ -21,6 +21,7 @@ import { UiLayer } from '../ui/UiLayer'
 import { Moon } from './Moon'
 import { DistanceTracks } from './DistanceTracks'
 import { FieldRings } from './FieldRings'
+import { JumpDrop } from './JumpDrop'
 import { JumpLayer } from './JumpLayer'
 
 /** How much of the stylized glow stays under the physical layer: the night-side rim and the wide halo. */
@@ -74,6 +75,7 @@ export function Globe() {
         <Arcs />
         <Airports />
         <FieldRings />
+        <JumpDrop />
         <DistanceTracks />
       </Suspense>
       <JumpLayer />

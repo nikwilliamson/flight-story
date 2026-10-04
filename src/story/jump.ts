@@ -11,8 +11,8 @@ export const JUMP = {
   CABIN_T: 15.4,
   DURATION: 16.5,
   /** Layer opacity in the cabin, and at the open door. */
-  LOW: 0.16,
-  HIGH: 0.38,
+  LOW: 0.3,
+  HIGH: 0.55,
   /** public/jump-atlas.jpg: FRAMES frames sampled evenly over DURATION, COLS across (scripts/build_jump_atlas.sh). */
   FRAMES: 128,
   COLS: 8,

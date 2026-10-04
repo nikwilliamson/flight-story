@@ -16,12 +16,14 @@ interface Props {
   /** Type scale. */
   s: number
   opening?: boolean
+  /** No glass container, only a little vertical breathing room (phones: the text sits straight on the scene). */
+  bare?: boolean
   onHeight: (height: number) => void
 }
 
 /** One chapter's card: eyebrow, title, paragraph and modules on glass. Its parent moves it with the scroll. */
-export const StoryCard = forwardRef<Group, Props>(function StoryCard({ chapter, width, s, opening, onHeight }, ref) {
-  const pad = PADDING * s
+export const StoryCard = forwardRef<Group, Props>(function StoryCard({ chapter, width, s, opening, bare, onHeight }, ref) {
+  const pad = bare ? 0 : PADDING * s
   const inner = width - 2 * pad
   const rows: Row[] = useMemo(() => {
     const titleSize = (opening ? 42 : 32) * s
@@ -46,13 +48,13 @@ export const StoryCard = forwardRef<Group, Props>(function StoryCard({ chapter, 
   const [measured, setMeasured] = useState<(number | undefined)[]>([])
   const heights = rows.map((r, i) => r.height ?? measured[i])
   const tops: number[] = []
-  let cursor = pad
+  let cursor = bare ? 12 * s : pad
   rows.forEach((r, i) => {
     cursor += r.gap
     tops.push(cursor)
     cursor += heights[i] ?? 0
   })
-  const total = cursor + pad
+  const total = cursor + (bare ? 12 * s : pad)
   const ready = heights.every((h) => h !== undefined)
   useEffect(() => {
     if (ready) onHeight(total)
@@ -60,7 +62,7 @@ export const StoryCard = forwardRef<Group, Props>(function StoryCard({ chapter, 
 
   return (
     <group ref={ref} visible={false}>
-      {ready && <Glass width={width} height={total} />}
+      {ready && !bare && <Glass width={width} height={total} />}
       <group position={[pad, 0, 0]}>
         {rows.map((r, i) => (
           <group key={i}>

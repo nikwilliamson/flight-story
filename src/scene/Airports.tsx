@@ -90,7 +90,7 @@ export function Airports() {
           uShow: { value: 1 },
           uStory: { value: STORY_END },
           uScale: { value: 1 },
-          uColor: { value: palette.domestic },
+          uColor: { value: palette.airport },
           uHome: { value: palette.home },
         },
         vertexShader: /* glsl */ `
@@ -137,19 +137,20 @@ export function Airports() {
           varying float vLanded;
           // Edge band at least one screen pixel wide, so foreshortened discs stay antialiased.
           float edge(float r, float radius, float soft) {
-            float w = max(soft, fwidth(r));
+            float w = max(soft, fwidth(r) * 0.75);
             return 1.0 - smoothstep(radius - w, radius + w, r);
           }
           void main() {
             if (vWeight < 0.0) discard;   // not visited yet at the playhead
             float r = length(vQ);
             float fade = smoothstep(-0.02, 0.25, vFacing);
-            // Visited airport: a flat blue disc sized by visits, soft edge, small glow that grows with the hub.
+            // Visited airport: a flat white disc sized by visits with a crisp, pixel-wide edge (Nik: sharp, not
+            // blurry), and only a faint halo for the hubs. Kept under the bloom threshold so it isn't smeared.
             float radius = mix(1.6, 4.6, vWeight);
-            float disc = edge(r, radius, 0.7);
-            float glow = exp(-max(r - radius, 0.0) / (1.5 + 4.0 * vWeight)) * (0.18 + 0.32 * vWeight) * (1.0 - disc);
-            // The home airport's disc turns white; the orange ring below decorates that same disc.
-            vec3 rgb = mix(uColor, vec3(1.0), vHome) * (disc * 1.15 + glow);
+            float disc = edge(r, radius, 0.0);
+            float glow = exp(-max(r - radius, 0.0) / (0.8 + 1.6 * vWeight)) * (0.04 + 0.1 * vWeight) * (1.0 - disc);
+            // The orange ring below decorates the home airport's disc.
+            vec3 rgb = uColor * (disc * 0.6 + glow);
             float a = disc + glow;
             // Home: the same disc, circled by an orange ring that keeps a fixed gap from the disc as it grows and a
             // fixed stroke width, with a faint glow.
@@ -169,7 +170,7 @@ export function Airports() {
             // Every other landing: a smaller, fainter blue ring from the disc's edge.
             if (!first && vLanded >= 0.0 && vLanded < ${LANDING_RIPPLE.toFixed(2)}) {
               float k = vLanded / ${LANDING_RIPPLE.toFixed(2)};
-              float wave = edge(abs(r - (radius + 1.0 + vLanded * 11.0)), 0.5, 0.5) * (1.0 - k) * (1.0 - k) * 0.6;
+              float wave = edge(abs(r - (radius + 1.0 + vLanded * 11.0)), 0.5, 0.0) * (1.0 - k) * (1.0 - k) * 0.6;
               rgb += uColor * wave;
               a += wave;
             }

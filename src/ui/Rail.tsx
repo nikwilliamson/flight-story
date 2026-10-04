@@ -3,7 +3,6 @@ import { useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { Mesh } from 'three'
 import { CHAPTERS } from '../story/chapters'
-import { bufferFor } from '../story/scrollPlan'
 import { scroll } from '../story/scrollState'
 import { Label } from './Label'
 import { fonts } from './fonts'
@@ -34,7 +33,7 @@ export function Rail({ width, height }: { width: number; height: number }) {
   const go = (i: number) => {
     const seg = scroll.plan?.segments[i]
     if (!seg) return
-    window.scrollTo({ top: seg.lock + bufferFor(seg.unlock - seg.lock, height) + 1, behavior: 'smooth' })
+    window.scrollTo({ top: seg.at + 1, behavior: 'smooth' })
   }
 
   return (

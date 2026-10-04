@@ -117,6 +117,7 @@ const vertexShader = /* glsl */ `
   uniform float uWidth;
   uniform sampler2D uHighlight;
   uniform float uHighlightWidth;
+  uniform float uClose;
   attribute vec3 aPrev;
   attribute vec3 aNext;
   attribute float aSide;
@@ -130,6 +131,8 @@ const vertexShader = /* glsl */ `
   varying float vSpan;
   varying float vStart;
   varying float vKind;
+  varying float vSide;
+  varying float vWidth;
   void main() {
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vec3 tangent = normalize((modelViewMatrix * vec4(aNext - aPrev, 0.0)).xyz + 1e-6);
@@ -140,7 +143,10 @@ const vertexShader = /* glsl */ `
     vHighlight = texelFetch(uHighlight, texel, 0).r;
     // Lit legs thicken a little so they read through the dimmed field.
     float width = uWidth * (aKind > 2.5 && aKind < 3.5 ? 0.8 : 1.0) * (1.0 + 0.6 * vHighlight);
-    mv.xyz += side * aSide * width * 0.5 * pixel;
+    // One extra pixel for the antialiased edge the fragment shader feathers.
+    mv.xyz += side * aSide * (width + 1.0) * 0.5 * pixel;
+    vSide = aSide;
+    vWidth = width;
     gl_Position = projectionMatrix * mv;
     vT = aT;
     vStart = aStart;
@@ -161,6 +167,9 @@ const fragmentShader = /* glsl */ `
   uniform vec3 uDomestic;
   uniform vec3 uInternational;
   uniform vec3 uGround;
+  uniform float uClose;
+  varying float vSide;
+  varying float vWidth;
   varying float vT;
   varying float vStart;
   varying float vKind;
@@ -190,8 +199,11 @@ const fragmentShader = /* glsl */ `
     // Routes dissolve over the last ~250 km into each airport, so hubs glow from the airport
     // sprite rather than from hundreds of overlapping lines. Measured in radians, so long and
     // short routes clear the same radius.
-    float endFade = smoothstep(0.006, 0.04, min(vT, 1.0 - vT) * vSpan);
-    float apex = (0.55 + 0.45 * sin(3.14159 * vT)) * endFade;
+    // Zoomed in, both shrink with the view (Nik: lines tapered far too thin close up), so a route stays full
+    // strength across the screen and only clears the last few pixels into the airport.
+    float k = mix(1.0, 0.15, uClose);
+    float endFade = smoothstep(0.006 * k, 0.04 * k, min(vT, 1.0 - vT) * vSpan);
+    float apex = mix(0.55 + 0.45 * sin(3.14159 * vT), 1.0, uClose) * endFade;
     // The line is laid down behind the plane as it flies, already at its settled look, so an arc draws itself
     // from A to B and simply stays; the comet head is the only thing that comes and goes.
     float a = max(head * 2.4, ghost * apex * flown) * pattern;
@@ -200,9 +212,14 @@ const fragmentShader = /* glsl */ `
     float lit = max(a, 0.85 * apex * max(flown, uReveal) * pattern);
     a = mix(a * (1.0 - ${DIM.toFixed(2)} * uDim), lit, vHighlight);
     color = mix(color, vec3(1.0), vHighlight);
+    // Feathered edge, about a pixel wide, so the ribbon reads smooth rather than stair-stepped.
+    a *= clamp((1.0 - abs(vSide)) * (vWidth + 1.0) * 0.5 + 0.25, 0.0, 1.0);
     gl_FragColor = vec4(color * a, a) * uShow;
   }
 `
+
+/** Route width in CSS px at the opening view (Nik: 1.1 read too thin). */
+const WIDTH = 1.6
 
 function makeMaterial() {
   return new ShaderMaterial({
@@ -214,7 +231,8 @@ function makeMaterial() {
     uniforms: {
       uShow: { value: 1 },
       uResolution: { value: new Vector2() },
-      uWidth: { value: 1.1 },
+      uWidth: { value: WIDTH },
+      uClose: { value: 0 },
       uTime: { value: 0 },
       uFlight: { value: FLIGHT },
       uTripStart: { value: 1e9 },
@@ -237,14 +255,17 @@ export function Arcs() {
   const material = useMemo(makeMaterial, [])
   const { size, viewport } = useThree()
   const mesh = useRef<Mesh>(null)
-  useFrame((_, delta) => {
+  useFrame(({ camera }, delta) => {
     stepHighlight(Math.min(delta, 0.1))
     material.uniforms.uDim.value = highlight.dim
     // Faded out and skipped entirely while the Moon shot has the screen.
     material.uniforms.uShow.value = distance.routes
     if (mesh.current) mesh.current.visible = distance.routes > 0
     material.uniforms.uResolution.value.set(size.width * viewport.dpr, size.height * viewport.dpr)
-    material.uniforms.uWidth.value = 1.1 * viewport.dpr
+    // 0 at the opening view, 1 near the ground: lines thicken a little and stop tapering as the camera closes in.
+    const close = Math.min(1, Math.max(0, (3 - camera.position.length()) / 1.7))
+    material.uniforms.uClose.value = close * close * (3 - 2 * close)
+    material.uniforms.uWidth.value = WIDTH * (1 + 0.5 * material.uniforms.uClose.value) * viewport.dpr
     const { time, focusFrom, reveal } = timeline
     material.uniforms.uTime.value = time
     material.uniforms.uReveal.value = reveal ? 1 : 0

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import type { PerspectiveCamera } from 'three'
+import { Vector3, type PerspectiveCamera } from 'three'
 import { latLonToVec3 } from '../../geo'
 import { useStory, type Shot } from '../../state/store'
 
@@ -17,11 +17,26 @@ const MIN_ALTITUDE = 0.02
 /** Height of the highest arc above the unit sphere (Arcs lift: 0.03 + 0.2 for a half-world leg). */
 const ARC_CEILING = 0.25
 
+/** Distance where the horizon tilt starts, and how far (radians) the view pitches near the ground (globe v48). */
+const TILT_FROM = 3.4
+const TILT_NEAR = 1.45
+const MAX_TILT = 0.85
+/** The globe's slow idle turn (v48 OrbitControls autoRotateSpeed 0.18: about 1.1° a second), eased with zoom. */
+const DRIFT_DEG_PER_S = 1.1
+
+/** How far the view pitches toward the horizon at eye distance d: none far out, MAX_TILT close in. */
+export function tiltAt(d: number) {
+  const k = Math.min(1, Math.max(0, (TILT_FROM - d) / (TILT_FROM - TILT_NEAR)))
+  return MAX_TILT * k * k * (3 - 2 * k)
+}
+
 /** Shortest signed difference between two longitudes, so the camera always goes the short way round. */
 export const wrap = (d: number) => ((((d + 540) % 360) + 360) % 360) - 180
 
 /** Where the camera is right now (it lags the shot). Read by anything that waits for the camera to arrive. */
 export const camera = { lon: -40, lat: 28, zoom: 1 }
+/** Degrees of idle turn on top of camera.lon; folded into it whenever the shot changes, so nothing jumps. */
+const drift = { lon: 0 }
 
 /** The globe's camera, for screen-space layers (their own scenes have their own cameras) to project with. */
 export const view: { camera: PerspectiveCamera | null } = { camera: null }
@@ -42,7 +57,7 @@ export function StoryCamera() {
   const gl = useThree((s) => s.gl)
   const size = useThree((s) => s.size)
   // Mutable across renders: a resize re-renders this component but must not reset the move in progress.
-  const state = useRef({ target: { ...useStory.getState().shot }, shot: useStory.getState().shot, userTookOver: false }).current
+  const state = useRef({ target: { ...useStory.getState().shot }, shot: useStory.getState().shot, userTookOver: false, dragging: false }).current
   const { target } = state
   useEffect(() => {
     view.camera = cam
@@ -60,6 +75,7 @@ export function StoryCamera() {
       el.setPointerCapture(e.pointerId)
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       state.userTookOver = true
+      state.dragging = true
     }
     const move = (e: PointerEvent) => {
       const prev = pointers.get(e.pointerId)
@@ -79,6 +95,7 @@ export function StoryCamera() {
     const up = (e: PointerEvent) => {
       pointers.delete(e.pointerId)
       pinch = 0
+      state.dragging = pointers.size > 0
     }
     const wheel = (e: WheelEvent) => {
       // A plain wheel always scrolls the story; a trackpad pinch (ctrl + wheel) zooms the released globe.
@@ -109,6 +126,8 @@ export function StoryCamera() {
       state.shot = next
       Object.assign(target, next)
       state.userTookOver = false
+      camera.lon += drift.lon
+      drift.lon = 0
     } else if (state.shot.spin && !state.userTookOver) {
       target.lon += (dt * SPIN_DEG_PER_S) / Math.max(1, camera.zoom)
     }
@@ -117,6 +136,8 @@ export function StoryCamera() {
     camera.lon += wrap(target.lon - camera.lon) * s
     camera.lat += (target.lat - camera.lat) * s
     camera.zoom = Math.exp(Math.log(camera.zoom) + (Math.log(target.zoom) - Math.log(camera.zoom)) * s)
+    // The globe never sits dead still (v48): a slow turn that eases off as the camera closes in, so close-ups barely move.
+    if (!state.shot.spin && !state.dragging && !reduceMotion()) drift.lon += (dt * DRIFT_DEG_PER_S) / Math.max(1, camera.zoom * camera.zoom)
 
     frame(cam, size.width, size.height, useStory.getState().stage)
   })
@@ -137,15 +158,24 @@ const clampZoom = (z: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z))
  * Places the camera so the globe's silhouette has radius RADIUS_SHARE × zoom × the stage's shorter side, centred
  * in the stage. The stage is applied with setViewOffset, so the damping model never knows about layout.
  */
+const aim = new Vector3()
+const north = new Vector3()
+
 function frame(cam: PerspectiveCamera, width: number, height: number, stage: { x: number; y: number; width: number; height: number } | null) {
   const s = stage ?? { x: 0, y: 0, width, height }
   const distance = distanceForZoom(camera.zoom, cam.fov, height, s)
-  latLonToVec3(camera.lat, camera.lon, distance, cam.position)
+  const lon = camera.lon + drift.lon
+  // Pitched toward the horizon as it closes in (v48 poseFor): the eye swings back from over the aim point, keeping its
+  // height, and looks at the ground there, so close-ups read as flying over the Earth rather than at a map.
+  const tilt = tiltAt(distance)
+  latLonToVec3(camera.lat, lon, 1, aim)
+  north.set(0, 1, 0).addScaledVector(aim, -aim.y).normalize()
+  cam.position.copy(aim).multiplyScalar(Math.cos(tilt)).addScaledVector(north, -Math.sin(tilt)).multiplyScalar(distance - 1).add(aim)
   // Nothing sits higher than the tallest arc, so the near plane can ride just under it: close-ups (the jump, at
   // zoom 16) keep depth precision without a logarithmic depth buffer.
-  cam.near = Math.max(0.002, (distance - 1 - ARC_CEILING) * 0.8)
-  cam.up.set(0, 1, 0)
-  cam.lookAt(0, 0, 0)
+  cam.near = Math.max(0.002, (distance - 1 - ARC_CEILING) * 0.8 * Math.cos(tilt))
+  cam.up.copy(north)
+  cam.lookAt(aim)
   const offsetX = width / 2 - (s.x + s.width / 2)
   const offsetY = height / 2 - (s.y + s.height / 2)
   // Both of these update the projection matrix, which the near plane change also needs.
