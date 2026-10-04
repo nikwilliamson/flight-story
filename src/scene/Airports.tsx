@@ -5,8 +5,7 @@ import { airports, currentHome, legs, visitCounts } from '../data'
 import { latLonToVec3 } from '../geo'
 import { palette } from '../theme'
 import { useTerrain } from './terrain'
-import { FLIGHT, legStart, moveAt, STORY_END, visitTimes, visitsAt } from '../story/schedule'
-import { playhead } from '../story/playhead'
+import { FLIGHT, legStart, moveAt, STORY_END, timeline, visitTimes, visitsAt } from '../story/timeline'
 import { distance } from '../story/distance'
 
 const maxLog = Math.log2(1 + Math.max(...visitCounts))
@@ -192,7 +191,7 @@ export function Airports() {
     // airports a few dozen miles apart stay separate dots.
     const low = Math.min(1, Math.max(0, (d - 1.2) / 0.25))
     material.uniforms.uScale.value = d >= 1.45 ? 0.4 + 0.6 * near * near * (3 - 2 * near) : 0.12 + 0.28 * low
-    const { time } = playhead.state
+    const { time } = timeline
     material.uniforms.uStory.value = time
     if (time === last.time) return
     last.time = time

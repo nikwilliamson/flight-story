@@ -1,15 +1,18 @@
 import { useMemo } from 'react'
 import { useFrame, useLoader, useThree } from '@react-three/fiber'
-import { DataTexture, LinearFilter, LinearMipmapLinearFilter, RedFormat, ShaderMaterial, TextureLoader, Vector3, type Texture } from 'three'
+import { DataTexture, LinearFilter, LinearMipmapLinearFilter, RedFormat, ShaderMaterial, TextureLoader, Vector3, Vector4, type Texture } from 'three'
 import topoUrl from '../assets/topo_2048.png'
 import lightsUrl from '../assets/lights_viirs.png'
+import detailUrl from '../assets/lights_florida.png'
 import { palette } from '../theme'
 import { sunDirection } from './light'
 import { TERRAIN, terrainGlsl } from './terrain'
 import { noiseGlsl } from './noise'
 import { RouteField } from './routeField'
-import { playhead } from '../story/playhead'
-import { landedAt } from '../story/schedule'
+import { landedAt, timeline } from '../story/timeline'
+
+/** lon0, lat0, lon1, lat1 of the sharper lights patch. Keep in step with BOX in scripts/build_lights_detail.py. */
+const DETAIL_BOX = [-88, 23, -76, 33] as const
 
 const lonLatUv = /* glsl */ `
   vec2 lonLatUv(vec3 dir) {
@@ -43,11 +46,14 @@ const vertexShader = /* glsl */ `
 /**
  * The dark globe body (it writes depth, hiding the far side). Elevation is data, not a fill: it displaces the
  * mesh and tilts the shading normal, so relief shows only as slopes catching the key light. On top:
- *  - light pollution (NASA Black Marble 2016 grayscale, VIIRS): additive emissive layer plus a blurred bleed for glow
+ *  - light pollution (NASA Black Marble 2016 grayscale, VIIRS): additive emissive layer plus a blurred bleed for glow,
+ *    with a sharper patch over central Florida for the close-ups (the joyrides and the jump)
  */
 const fragmentShader = /* glsl */ `
   uniform sampler2D uTopo;
   uniform sampler2D uLights;
+  uniform sampler2D uDetail;
+  uniform vec4 uDetailBox;
   uniform vec3 uOcean;
   uniform vec3 uShelf;
   uniform vec3 uGrid;
@@ -121,6 +127,15 @@ const fragmentShader = /* glsl */ `
     // Lights are screen-blended into the body rather than added on top: they tint the ground and can never pass
     // 1.0, so they stay below the bloom threshold and read as part of the surface. A wide blurred lookup is the bleed.
     float lights = textureGrad(uLights, uv, dx, dy).r;
+    // Inside the detail box the sharper patch takes over, feathered at its edges so the seam never shows.
+    vec2 boxSize = uDetailBox.zw - uDetailBox.xy;
+    vec2 duv = (vec2(lon, lat) - uDetailBox.xy) / boxSize;
+    vec2 edge = smoothstep(0.0, 0.08, duv) * smoothstep(1.0, 0.92, duv);
+    float inBox = edge.x * edge.y;
+    if (inBox > 0.0) {
+      vec2 toBox = vec2(360.0, 180.0) / boxSize;
+      lights = mix(lights, textureGrad(uDetail, duv, dx * toBox, dy * toBox).r, inBox);
+    }
     float bleed = textureGrad(uLights, uv, dx * 10.0, dy * 10.0).r;
     vec3 lightLayer = uLightColor * clamp(pow(lights, 1.4) * 0.7 + bleed * 0.06, 0.0, 1.0);
     color = 1.0 - (1.0 - color) * (1.0 - lightLayer);
@@ -191,7 +206,7 @@ function toRedTexture(source: Texture, maxSize: number): DataTexture {
 }
 
 export function Surface() {
-  const [topo, lightsImage] = useLoader(TextureLoader, [topoUrl, lightsUrl])
+  const [topo, lightsImage, detail] = useLoader(TextureLoader, [topoUrl, lightsUrl, detailUrl])
   const maxTextureSize = useThree((s) => s.gl.capabilities.maxTextureSize)
   const lights = useMemo(() => toRedTexture(lightsImage, maxTextureSize), [lightsImage, maxTextureSize])
   const routes = useMemo(() => new RouteField(), [])
@@ -204,6 +219,8 @@ export function Surface() {
         uniforms: {
           uTopo: { value: prepare(topo) },
           uLights: { value: prepare(lights) },
+          uDetail: { value: prepare(detail) },
+          uDetailBox: { value: new Vector4(...DETAIL_BOX) },
           uOcean: { value: palette.ocean },
           uShelf: { value: palette.shelf },
           uGrid: { value: palette.grid },
@@ -217,7 +234,7 @@ export function Surface() {
           uRoutes: { value: routes.texture },
         },
       }),
-    [topo, lights, routes],
+    [topo, lights, detail, routes],
   )
   useFrame(({ camera, clock }) => {
     sunDirection(camera, material.uniforms.uSun.value)
@@ -225,7 +242,7 @@ export function Surface() {
     // The fog's route glow grows with the story; re-blurred a few times a second at most.
     if (clock.elapsedTime - refresh.at > 0.2) {
       refresh.at = clock.elapsedTime
-      routes.draw(landedAt(playhead.state.time))
+      routes.draw(landedAt(timeline.time))
     }
   })
   return (
