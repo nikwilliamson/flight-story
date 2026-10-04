@@ -10,6 +10,8 @@ import type { Leg } from './types'
 export const EARTH_CIRCUMFERENCE_MI = 24_901
 export const MOON_DISTANCE_MI = 238_855
 const LIGHT_MI_PER_S = 186_282
+/** Mean Earth–Sun distance. */
+const SUN_DISTANCE_MI = 92_955_807
 /** Air time estimate Nik confirmed: 30 min on the ground per airline leg plus a 480 mph cruise. */
 const GROUND_HOURS = 0.5
 const CRUISE_MPH = 480
@@ -84,6 +86,8 @@ export const facts = {
   ...total,
   moonTrips: total.miles / (2 * MOON_DISTANCE_MI),
   lightSeconds: total.miles / LIGHT_MI_PER_S,
+  /** Share of the way to the Sun. */
+  sunShare: total.miles / SUN_DISTANCE_MI,
   airTimeDays: airTimeHours / 24,
   averageLeg: total.miles / total.legs,
   types: new Set(legs.map((l) => l.aircraft).filter(Boolean)).size,

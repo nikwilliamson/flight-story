@@ -10,6 +10,7 @@ import { Backdrop, Stars } from './Stars'
 import { Arcs } from './Arcs'
 import { Airports } from './Airports'
 import { camera as storyCamera, StoryCamera } from './camera/StoryCamera'
+import { DistanceCamera } from './camera/DistanceCamera'
 import { timeline } from '../story/timeline'
 import { scroll } from '../story/scrollState'
 import { DebugHash } from '../story/debug'
@@ -75,6 +76,8 @@ export function Globe() {
       </Suspense>
       <JumpLayer />
       <StoryCamera />
+      {/* After the story camera: it blends over it for the distance section. */}
+      <DistanceCamera />
       <DebugHash />
       <ScrollDriver />
       {!debug.has('noui') && <UiLayer />}

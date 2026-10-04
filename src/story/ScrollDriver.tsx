@@ -7,6 +7,7 @@ import { activeAt, bufferFor, progressAt } from './scrollPlan'
 import { scroll } from './scrollState'
 import { FLIGHT, STORY_END, timeline } from './timeline'
 import { jump } from './jump'
+import { distance } from './distance'
 
 /** Lines wait this long after the camera arrives before they catch up to the scroll (Nik, buffer rule). */
 const LINE_DELAY_S = 0.35
@@ -16,6 +17,8 @@ const SNAP_LEGS = 250
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 const ids = (list: number[] = []) => list.map((id) => id - 1)
 const JUMP_INDEX = CHAPTERS.findIndex((c) => c.jump)
+const LAPS_INDEX = CHAPTERS.findIndex((c) => c.scene === 'laps')
+const MOON_INDEX = CHAPTERS.findIndex((c) => c.scene === 'moon')
 
 /** Story time at chapter progress p: legs scrub from the first's takeoff to the last's landing. */
 function timeFor(ch: Chapter, p: number) {
@@ -84,6 +87,13 @@ export function ScrollDriver() {
     // The footage scrubs with a little lag so a flick of the wheel doesn't jump frames.
     const jumpTarget = ch.jump ? p : index > JUMP_INDEX ? 1 : 0
     jump.progress = !ch.jump || reduceMotion() ? jumpTarget : jump.progress + (jumpTarget - jump.progress) * (1 - Math.exp(-dt * 8))
+    // The distance line scrubs the same way: lapping in its first chapter, unspooling to the Moon in the second, and
+    // simply finished (or not yet started) anywhere else. Fade and the globe's routes follow the camera's clock.
+    const lapsTarget = ch.scene === 'laps' ? p : index > LAPS_INDEX ? 1 : 0
+    const moonTarget = ch.scene === 'moon' ? p : index > MOON_INDEX ? 1 : 0
+    const follow = 1 - Math.exp(-dt * 8)
+    distance.laps = ch.scene !== 'laps' || reduceMotion() ? lapsTarget : distance.laps + (lapsTarget - distance.laps) * follow
+    distance.moon = ch.scene !== 'moon' || reduceMotion() ? moonTarget : distance.moon + (moonTarget - distance.moon) * follow
     scroll.active = index
     scroll.progress = p
   })
