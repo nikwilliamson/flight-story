@@ -34,6 +34,13 @@ describe('scroll plan', () => {
     }
   })
 
+  it('pins the next card only once the previous one has left the column', () => {
+    for (let i = 1; i < plan.segments.length; i++) {
+      const prev = plan.segments[i - 1]
+      expect(cardTop(prev, plan.segments[i].at) + prev.height).toBeLessThan(column.top)
+    }
+  })
+
   it('creeps a tall card up while pinned so its bottom shows', () => {
     const tall = plan.segments[2]
     expect(cardTop(tall, tall.at)).toBe(24)

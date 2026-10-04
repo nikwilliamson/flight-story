@@ -40,15 +40,14 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
   useFrame(() => {
     if (!plan) return
     const y = window.scrollY
-    // Once a tab is open, its panel takes the closing card's place.
+    // Once a tab is open, its panel takes the cards' place.
     const tabOpen = useStory.getState().tab !== null
-    const last = plan.segments.length - 1
     plan.segments.forEach((seg, i) => {
       const g = groups.current[i]
       if (!g) return
       const top = cardTop(seg, y)
       g.position.set(layout.card.x, -top, 0)
-      g.visible = top < viewport && top + seg.height > 0 && !(tabOpen && i === last)
+      g.visible = top < viewport && top + seg.height > 0 && !tabOpen
     })
   })
 

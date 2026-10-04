@@ -46,8 +46,11 @@ export function planScroll(cards: Card[], column: { top: number; bottom: number;
     const pinned = column.top + (fits && column.centre ? (room - height) / 2 : MARGIN)
     const overflow = fits ? 0 : height + 2 * MARGIN - room
     const prev = segments[i - 1]
-    // The next card arrives from just below the previous one's last pinned position, a gap behind it.
-    const at = prev ? prev.until + Math.max(GAP, prev.pinned - prev.overflow + prev.height + GAP - pinned) : 0
+    // The next card pins only once the previous one has scrolled clean off the column (Nik: they overlapped at the
+    // end), and never closer than a gap behind it on the way.
+    const gone = prev ? prev.pinned - prev.overflow + prev.height - column.top + GAP / 2 : 0
+    const behind = prev ? prev.pinned - prev.overflow + prev.height + GAP - pinned : 0
+    const at = prev ? prev.until + Math.max(GAP, gone, behind) : 0
     segments.push({ pinned, height, overflow, at, until: at + Math.max(scroll, overflow) })
   })
   const last = segments.at(-1)

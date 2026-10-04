@@ -137,7 +137,7 @@ const fragmentShader = /* glsl */ `
       lights = mix(lights, textureGrad(uDetail, duv, dx * toBox, dy * toBox).r, inBox);
     }
     float bleed = textureGrad(uLights, uv, dx * 10.0, dy * 10.0).r;
-    vec3 lightLayer = uLightColor * clamp(pow(lights, 1.4) * 0.7 + bleed * 0.06, 0.0, 1.0);
+    vec3 lightLayer = uLightColor * clamp(pow(lights, 1.4) * 0.6 + bleed * 0.05, 0.0, 1.0);
     color = 1.0 - (1.0 - color) * (1.0 - lightLayer);
 
     // Inner fog: the globe reads as filled with a slow, dense, dark haze. The view ray is continued into the sphere and
@@ -166,7 +166,7 @@ const fragmentShader = /* glsl */ `
     // The grid sits on the outer shell, so the fog only half-hides it.
     color += uGrid * g * 0.85 * (1.0 - land * 0.5) * (1.0 - fogAmount * 0.35);
     // A faint emissive term on top (Nik: very slightly emissive), so the brightest cities glow through the haze.
-    color += uLightColor * pow(lights, 2.2) * 0.14 * (1.0 - fogAmount * 0.5);
+    color += uLightColor * pow(lights, 2.2) * 0.11 * (1.0 - fogAmount * 0.5);
 
     float fres = pow(1.0 - max(dot(vNormal, vView), 0.0), 2.5);
     color += uRim * fres * 0.15;
