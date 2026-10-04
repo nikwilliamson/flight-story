@@ -14,6 +14,11 @@ Live at https://nikwilliamson.github.io/flight-story/
 
 Fare and hotel never leave the script. Notes are kept in the data but never displayed.
 
+## Plane photos
+`public/planes/<TAIL>.webp` plus `public/planes/manifest.json` (file, author, licence and source per tail; tails without a usable photo under `missing`). Openly licensed Wikimedia Commons photos only, so credit the author and licence wherever a photo is shown. After adding flights, run the **Plane photos** workflow (Actions tab) or locally:
+
+    pip install pillow && python scripts/fetch_tail_photos.py   # --all to re-pick every tail
+
 ## Deploy
 Every push to `main` builds and deploys to GitHub Pages (`.github/workflows/deploy.yml`). Pull requests build only.
 
