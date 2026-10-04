@@ -8,8 +8,7 @@ import { sunDirection } from './light'
 import { TERRAIN, terrainGlsl } from './terrain'
 import { noiseGlsl } from './noise'
 import { RouteField } from './routeField'
-import { playhead } from '../story/playhead'
-import { landedAt } from '../story/schedule'
+import { landedAt, timeline } from '../story/timeline'
 
 const lonLatUv = /* glsl */ `
   vec2 lonLatUv(vec3 dir) {
@@ -225,7 +224,7 @@ export function Surface() {
     // The fog's route glow grows with the story; re-blurred a few times a second at most.
     if (clock.elapsedTime - refresh.at > 0.2) {
       refresh.at = clock.elapsedTime
-      routes.draw(landedAt(playhead.state.time))
+      routes.draw(landedAt(timeline.time))
     }
   })
   return (

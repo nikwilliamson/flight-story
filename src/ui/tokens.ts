@@ -8,6 +8,7 @@ export const ui = {
   domestic: new Color('#4cc9ff'),
   international: new Color('#ffb54a'),
   glass: new Color('#081020'),
+  chip: new Color('#0f2340'),
   edge: new Color('#6fb6ff'),
 } as const
 

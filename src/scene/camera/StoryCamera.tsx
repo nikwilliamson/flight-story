@@ -47,7 +47,10 @@ export function StoryCamera() {
     const pointers = new Map<number, { x: number; y: number }>()
     let pinch = 0
     const degPerPx = () => 180 / (Math.PI * RADIUS_SHARE * Math.min(size.width, size.height) * camera.zoom)
+    // During the story the page scrolls under the canvas; the globe only takes the pointer once it's released.
+    const live = () => useStory.getState().interactive
     const down = (e: PointerEvent) => {
+      if (!live()) return
       el.setPointerCapture(e.pointerId)
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       state.userTookOver = true
@@ -72,6 +75,8 @@ export function StoryCamera() {
       pinch = 0
     }
     const wheel = (e: WheelEvent) => {
+      // A plain wheel always scrolls the story; a trackpad pinch (ctrl + wheel) zooms the released globe.
+      if (!live() || !e.ctrlKey) return
       e.preventDefault()
       state.userTookOver = true
       target.zoom = clampZoom(target.zoom * Math.exp(-e.deltaY * 0.0015))

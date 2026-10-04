@@ -9,12 +9,14 @@ import { Scattering } from './Scattering'
 import { Backdrop, Stars } from './Stars'
 import { Arcs } from './Arcs'
 import { Airports } from './Airports'
-import { StoryCamera } from './camera/StoryCamera'
+import { camera as storyCamera, StoryCamera } from './camera/StoryCamera'
+import { timeline } from '../story/timeline'
+import { scroll } from '../story/scrollState'
 import { DebugHash } from '../story/debug'
+import { ScrollDriver } from '../story/ScrollDriver'
 import { UiLayer } from '../ui/UiLayer'
 import { Moon } from './Moon'
 import { DistanceTracks } from './DistanceTracks'
-import { playhead } from '../story/playhead'
 
 /** How much of the stylized glow stays under the physical layer: the night-side rim and the wide halo. */
 const CLASSIC_GAIN = 0.55
@@ -30,7 +32,7 @@ const useFullEffects = () => {
 
 /**
  * Draws the globe when postprocessing is off. Any useFrame with a priority takes rendering over from R3F, and the
- * UI layer renders at priority 2, so without the composer (priority 1) something has to draw the scene first.
+ * UI layers render at priorities 2 and 3, so without the composer (priority 1) something has to draw the scene first.
  */
 function PlainRender() {
   useFrame(({ gl, scene, camera }) => {
@@ -40,19 +42,7 @@ function PlainRender() {
   return null
 }
 
-/** Advances the story playhead with the render loop. */
-function StoryClock() {
-  useFrame((_, delta) => playhead.tick(delta))
-  return null
-}
-
 export function Globe() {
-  // #trip-312 opens paused on that trip; debug #at=<seconds> on any point in the story (screenshots).
-  useEffect(() => {
-    const trip = /^#trip-(\d+)$/.exec(location.hash)
-    if (trip) playhead.seekTrip(Number(trip[1]) - 1)
-    else if (debug.has('at')) playhead.seek(Number(debug.get('at')))
-  }, [])
   const fullEffects = useFullEffects()
   return (
     <Canvas
@@ -63,7 +53,7 @@ export function Globe() {
       onCreated={(state) => {
         state.gl.setClearColor(palette.space, 1)
         // Debug: #probe exposes the camera for automated motion checks.
-        if (debug.has('probe')) Object.assign(window, { __camera: state.camera })
+        if (debug.has('probe')) Object.assign(window, { __camera: state.camera, __timeline: timeline, __scroll: scroll, __cam: storyCamera })
       }}
     >
       <Backdrop />
@@ -82,8 +72,8 @@ export function Globe() {
       </Suspense>
       <StoryCamera />
       <DebugHash />
+      <ScrollDriver />
       {!debug.has('noui') && <UiLayer />}
-      <StoryClock />
       {!(fullEffects && !debug.has('raw')) && <PlainRender />}
       {fullEffects && !debug.has('raw') && (
         <EffectComposer multisampling={0}>

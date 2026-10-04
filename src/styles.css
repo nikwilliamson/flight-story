@@ -1,11 +1,13 @@
-/* Full-bleed canvas. Everything visible is drawn in the scene; this file only sets the page up for it. */
+/* Full-bleed fixed canvas over an empty scroll spacer. Everything visible is drawn in the scene. */
 :root {
   --space: #03060d;
   color-scheme: dark;
 }
 
-html, body, #root { height: 100%; }
-body { margin: 0; background: var(--space); overflow: hidden; }
+html, body { margin: 0; background: var(--space); }
+body { overscroll-behavior-y: none; }
 
-.app { position: relative; height: 100%; overflow: hidden; }
-.globe { position: absolute !important; inset: 0; touch-action: none; }
+.app { position: fixed; inset: 0; }
+/* pan-y: vertical swipes scroll the page (the story); the globe takes drags only once released. */
+.globe { position: absolute !important; inset: 0; touch-action: pan-y; }
+#scroll-spacer { height: 100vh; }

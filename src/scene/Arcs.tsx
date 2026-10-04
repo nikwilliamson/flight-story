@@ -5,8 +5,7 @@ import { airports, legs } from '../data'
 import { angleBetween, arcPoints, latLonToVec3 } from '../geo'
 import { palette } from '../theme'
 import { useTerrain, type TerrainRadius } from './terrain'
-import { FLIGHT, legStart, tripAt, trips, STORY_END } from '../story/schedule'
-import { playhead } from '../story/playhead'
+import { FLIGHT, legStart, STORY_END, timeline } from '../story/timeline'
 import { distance } from '../story/distance'
 import { DIM, highlight, stepHighlight } from './highlight'
 
@@ -243,12 +242,11 @@ export function Arcs() {
     if (mesh.current) mesh.current.visible = distance.routes > 0
     material.uniforms.uResolution.value.set(size.width * viewport.dpr, size.height * viewport.dpr)
     material.uniforms.uWidth.value = 1.1 * viewport.dpr
-    const { time } = playhead.state
+    const { time, focusFrom } = timeline
     material.uniforms.uTime.value = time
-    // The finished globe has no current trip: everything shows at its settled brightness.
-    const done = time >= STORY_END
-    const trip = tripAt(time)
-    material.uniforms.uTripStart.value = done || trip < 0 ? 1e9 : legStart[trips[trip].first]
+    // The finished globe has no current chapter: everything shows at its settled brightness.
+    const done = time >= STORY_END || !Number.isFinite(focusFrom)
+    material.uniforms.uTripStart.value = done ? 1e9 : focusFrom
     material.uniforms.uHistory.value = done ? 1 : 0.7
   })
   // Depth-tested against the globe body, so routes over the far side stay hidden.
