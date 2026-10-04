@@ -1,0 +1,11 @@
+/* Full-bleed canvas. Everything visible is drawn in the scene; this file only sets the page up for it. */
+:root {
+  --space: #03060d;
+  color-scheme: dark;
+}
+
+html, body, #root { height: 100%; }
+body { margin: 0; background: var(--space); overflow: hidden; }
+
+.app { position: relative; height: 100%; overflow: hidden; }
+.globe { position: absolute !important; inset: 0; touch-action: none; }
