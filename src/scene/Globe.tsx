@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing'
+import { PerformanceMonitor } from '@react-three/drei'
 import { palette } from '../theme'
 import { Surface } from './Surface'
 import { Outlines } from './Outlines'
@@ -48,12 +49,16 @@ function PlainRender() {
   return null
 }
 
+/** Phones start a little under full sharpness: the shaders are fill-rate bound and 3× screens pay for every pixel. */
+const startDpr = () => Math.min(window.devicePixelRatio, window.matchMedia('(pointer: coarse)').matches ? 1.5 : 2)
+
 export function Globe() {
   const fullEffects = useFullEffects()
+  const [dpr, setDpr] = useState(startDpr)
   return (
     <Canvas
       className="globe"
-      dpr={[1, 2]}
+      dpr={dpr}
       camera={{ fov: 34, near: 0.05, far: 1000 }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       onCreated={(state) => {
@@ -62,6 +67,13 @@ export function Globe() {
         if (debug.has('probe')) Object.assign(window, { __camera: state.camera, __timeline: timeline, __scroll: scroll, __cam: storyCamera, __story: useStory })
       }}
     >
+      {/* Holds the frame budget: drops the resolution when frames run long, raises it back when there's headroom. */}
+      <PerformanceMonitor
+        flipflops={3}
+        onDecline={() => setDpr((d) => Math.max(1, d - 0.25))}
+        onIncline={() => setDpr((d) => Math.min(startDpr(), d + 0.25))}
+        onFallback={() => setDpr(1)}
+      />
       <Backdrop />
       <Stars />
       {/* #classic shows the stylized glow alone, for comparison with the physical scattering. */}

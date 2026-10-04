@@ -8,6 +8,7 @@ import { FLIGHT, STORY_END, timeline } from './timeline'
 import { jump } from './jump'
 import { distance } from './distance'
 import { PACING } from './pacing'
+import { ease } from '../motion'
 
 /** Above this many legs of catch-up outside the chapter's range, cut instead of animating. */
 const SNAP_LEGS = 250
@@ -22,7 +23,6 @@ const SHOTS = CHAPTERS.map((ch) => {
   return fit.length ? { ...ch.shot, fit } : ch.shot
 })
 
-const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 const JUMP_INDEX = CHAPTERS.findIndex((c) => c.jump)
 const LAPS_INDEX = CHAPTERS.findIndex((c) => c.scene === 'laps')
 const MOON_INDEX = CHAPTERS.findIndex((c) => c.scene === 'moon')
@@ -79,7 +79,7 @@ export function ScrollDriver() {
       store.setInteractive(index === CHAPTERS.length - 1)
     }
 
-    const follow = reduceMotion() ? 1 : 1 - Math.exp(-dt * PACING.follow)
+    const follow = ease(dt, PACING.follow)
     const target = timeFor(ch, p)
     const gap = target - state.shown
     const inChapter = ch.range && state.shown >= ch.range[0] - 1 && state.shown <= ch.range[1] + FLIGHT

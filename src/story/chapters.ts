@@ -27,6 +27,8 @@ export type Module =
 export interface Plane {
   /** Leg id. */
   leg: number
+  /** As logged, for its photo. */
+  tail: string | null
   title: string
   meta: string
   story?: string
@@ -125,9 +127,9 @@ function planes(label: string, ids: number[]): Module {
     planes: ids.map((id) => {
       const l = legs[id - 1]
       const flown = Number(l.sort.slice(0, 4))
-      const age = !l.built ? `Flown ${flown}` : flown - l.built < 1 ? `Built ${l.built} · brand new when he flew it` : `Built ${l.built} · ${flown - l.built} years old when he flew it`
+      const age = !l.built ? `Flown ${flown}` : flown - l.built < 1 ? `Built ${l.built} · brand new when he flew it` : `Built ${l.built} · ${flown - l.built} year${flown - l.built === 1 ? '' : 's'} old when he flew it`
       const where = l.from === l.to ? `${airports[l.from].city} joyride` : `${airports[l.from].city} to ${airports[l.to].city}`
-      return { leg: id, title: [l.aircraft, l.tail].filter(Boolean).join(' · '), meta: `${age}\n${where}, ${flown}`, story: STORIES[id] }
+      return { leg: id, tail: l.tail, title: [l.aircraft, l.tail].filter(Boolean).join(' · '), meta: `${age}\n${where}, ${flown}`, story: STORIES[id] }
     }),
   }
 }
@@ -270,7 +272,7 @@ export const CHAPTERS: Chapter[] = [
     label: '2008',
     eyebrow: '2008–2011',
     title: 'The long ones',
-    body: `The longest flight in the log is San Francisco to Sydney in May 2009: ${mi(longestLeg.miles ?? 0)} on a United 747-400, and back three days later. He crossed the equator ${facts.equatorCrossings} times and the date line about ${facts.dateLineCrossings}.`,
+    body: `The longest flight in the log is San Francisco to Sydney in May 2009: ${mi(longestLeg.miles ?? 0)} on a United 747-400, and back three days later. He crossed the equator ${facts.equatorCrossings} times and the date line about ${facts.dateLineCrossings} times.`,
     modules: [
       {
         kind: 'table',

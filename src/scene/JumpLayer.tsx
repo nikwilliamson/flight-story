@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { CustomBlending, LinearFilter, OneFactor, OneMinusSrcAlphaFactor, Mesh, PlaneGeometry, ShaderMaterial, TextureLoader, Vector2, Vector4, type Texture } from 'three'
+import { reducedMotion } from '../motion'
 import { palette } from '../theme'
 import { useStory } from '../state/store'
 import { CHAPTERS } from '../story/chapters'
@@ -142,7 +143,7 @@ export function JumpLayer() {
     )
     u.uStage.value.set(stage.width * dpr, stage.height * dpr)
     u.uCell.value = CELL_PX * dpr
-    u.uFrame.value = matchMedia('(prefers-reduced-motion: reduce)').matches ? STILL_FRAME : phase.frame
+    u.uFrame.value = reducedMotion() ? STILL_FRAME : phase.frame
     u.uOpacity.value = phase.opacity
     u.uDoor.value = phase.door
     u.uTime.value = clock.elapsedTime

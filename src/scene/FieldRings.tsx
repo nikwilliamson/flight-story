@@ -5,9 +5,13 @@ import { airports, legs } from '../data'
 import { latLonToVec3 } from '../geo'
 import { litAmount } from './highlight'
 import { useTerrain } from './terrain'
+import { reducedMotion } from '../motion'
 
-/** Ring radius, CSS px at the ring's own depth (wireframe: 9). */
-const RADIUS_PX = 9
+/** Ring radius, CSS px at the ring's own depth (wireframe: 9, too small to find among the routes). */
+const RADIUS_PX = 13
+/** The pulse grows from the ring out to this radius, then fades, every PULSE seconds. */
+const PULSE_PX = 34
+const PULSE = 2.4
 /** Clearance above the terrain, matching the airport discs (Airports LIFT). */
 const LIFT = 0.003
 const CORNERS = [-1, -1, 1, -1, 1, 1, -1, 1]
@@ -33,7 +37,7 @@ const vertexShader = /* glsl */ `
     // foreshortens with the tilt and turns away over the limb.
     vec4 centre = modelViewMatrix * vec4(position, 1.0);
     float pixel = 2.0 * -centre.z / (projectionMatrix[1][1] * uResolutionY);
-    float extent = ${RADIUS_PX.toFixed(1)} + 3.0;
+    float extent = ${PULSE_PX.toFixed(1)} + 3.0;
     vQ = aCorner * extent;
     vec4 mv = modelViewMatrix * vec4(position + (east * vQ.x + north * vQ.y) * pixel, 1.0);
     vFacing = dot(normalize(normalMatrix * up), normalize(-centre.xyz));
@@ -42,16 +46,20 @@ const vertexShader = /* glsl */ `
 `
 
 const fragmentShader = /* glsl */ `
+  uniform float uPulse;
   varying float vLit;
   varying float vFacing;
   varying vec2 vQ;
   void main() {
     if (vLit < 0.002) discard;
-    float d = abs(length(vQ) - ${RADIUS_PX.toFixed(1)});
-    float w = max(0.8, fwidth(d));
-    float ring = 1.0 - smoothstep(0.8 - w * 0.5, 0.8 + w * 0.5, d);
+    float r = length(vQ);
+    float w = max(0.8, fwidth(r));
+    float ring = 1.0 - smoothstep(1.1 - w * 0.5, 1.1 + w * 0.5, abs(r - ${RADIUS_PX.toFixed(1)}));
+    // A sonar pulse out from the ring, so a lit field reads among the routes without dimming them.
+    float pr = mix(${RADIUS_PX.toFixed(1)}, ${PULSE_PX.toFixed(1)}, uPulse);
+    float pulse = (1.0 - smoothstep(0.7 - w * 0.5, 0.7 + w * 0.5, abs(r - pr))) * (1.0 - uPulse) * 0.7;
     // Gone over the limb, the way the airport discs go.
-    float a = ring * vLit * smoothstep(-0.02, 0.25, vFacing);
+    float a = max(ring, pulse) * vLit * smoothstep(-0.02, 0.25, vFacing);
     gl_FragColor = vec4(vec3(a), a);
   }
 `
@@ -92,12 +100,14 @@ export function FieldRings() {
         transparent: true,
         depthWrite: false,
         blending: AdditiveBlending,
-        uniforms: { uResolutionY: { value: 1 } },
+        uniforms: { uResolutionY: { value: 1 }, uPulse: { value: 0 } },
       }),
     [],
   )
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
+    // Under reduced motion the pulse holds at its start, which hides it inside the ring.
+    material.uniforms.uPulse.value = reducedMotion() ? 0 : (clock.elapsedTime / PULSE) % 1
     // Sizes are CSS px, so the resolution is the CSS height whatever the device pixel ratio.
     material.uniforms.uResolutionY.value = size.height
     const lit = geometry.getAttribute('aLit') as BufferAttribute

@@ -6,6 +6,7 @@ import { Label } from './Label'
 import { fonts } from './fonts'
 import { ui } from './tokens'
 import { FilterChips, layoutChips, ListModule, listHeight } from './interactive'
+import { creditHeight, PHOTO_ASPECT, PlanePhoto } from './PlanePhoto'
 
 /**
  * A card is a column of rows. A row either knows its height up front (single-line layouts, computed from the type
@@ -285,11 +286,13 @@ function FactRule({ y, s }: { y: number; s: number }) {
 }
 
 /**
- * Airframe cards stacked on small glass panels: aircraft and tail, its age and where he flew it (mono), then its
- * story. Each story is measured, so the list reports its height once every card has typeset.
+ * Airframe cards stacked on small glass panels: its photo when Commons has one, aircraft and tail, its age and where
+ * he flew it (mono), then its story. Each story is measured and each photo looked up, so the list reports its height
+ * once every card has settled.
  */
 function PlaneList({ y, width, s, label, planes, onHeight }: { y: number; width: number; s: number; label: string; planes: Plane[]; onHeight: (h: number) => void }) {
   const [stories, setStories] = useState<(number | undefined)[]>([])
+  const [photos, setPhotos] = useState<(boolean | undefined)[]>([])
   const pad = 12 * s
   const spacing = 8 * s
   const title = 16 * s
@@ -297,11 +300,13 @@ function PlaneList({ y, width, s, label, planes, onHeight }: { y: number; width:
   const metaHeight = 2 * meta * 1.4
   const head = labelHeight(s) + 8 * s
   const heights = planes.map((p, i) => (p.story ? stories[i] : 0))
-  const ready = heights.every((h) => h !== undefined)
+  const photoW = width - 2 * pad
+  const photoH = (i: number) => (photos[i] ? photoW * PHOTO_ASPECT + creditHeight(s) + 8 * s : 0)
+  const ready = heights.every((h) => h !== undefined) && planes.every((_, i) => photos[i] !== undefined)
   const cards: { top: number; height: number }[] = []
   let cursor = head
   planes.forEach((p, i) => {
-    const height = 2 * pad + title * 1.2 + 6 * s + metaHeight + (p.story ? 8 * s + (heights[i] ?? 0) : 0)
+    const height = 2 * pad + photoH(i) + title * 1.2 + 6 * s + metaHeight + (p.story ? 8 * s + (heights[i] ?? 0) : 0)
     cards.push({ top: cursor, height })
     cursor += height + spacing
   })
@@ -314,12 +319,20 @@ function PlaneList({ y, width, s, label, planes, onHeight }: { y: number; width:
     <group>
       <SectionLabel y={y} text={label} s={s} />
       {planes.map((p, i) => {
-        const top = y + cards[i].top
+        const top = y + cards[i].top + photoH(i)
         const inner = width - 2 * pad - 3 * s
         const x = pad + 3 * s
         return (
           <group key={p.leg}>
-            {ready && <Glass x={0} y={top} width={width} height={cards[i].height} radius={8 * s} glow={0} fill={0.55} color={ui.chip} />}
+            {ready && <Glass x={0} y={y + cards[i].top} width={width} height={cards[i].height} radius={8 * s} glow={0} fill={0.55} color={ui.chip} />}
+            <PlanePhoto
+              tail={p.tail}
+              x={pad}
+              y={y + cards[i].top + pad}
+              width={photoW}
+              s={s}
+              onPhoto={(has) => setPhotos((prev) => (prev[i] === has ? prev : Object.assign([...prev], { [i]: has })))}
+            />
             <Glass x={0} y={top + pad} width={2 * s} height={title * 1.2} radius={1} glow={0} fill={1} color={ui.international} />
             <Label x={x} y={top + pad} size={title} color={ui.ink} font={fonts.displayMedium} lineHeight={1.2} width={inner} nowrap>
               {p.title}

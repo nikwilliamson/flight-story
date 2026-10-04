@@ -3,6 +3,7 @@ import { useThree } from '@react-three/fiber'
 import { useStory } from '../state/store'
 import { layoutFor } from './layout'
 import { Rail } from './Rail'
+import { Loader } from './Loader'
 import { ScreenLayer } from './ScreenLayer'
 import { StoryCards } from './StoryCards'
 import { StoryHud } from './StoryHud'
@@ -29,6 +30,9 @@ export function UiLayer() {
         <TabBar layout={layout} />
         <StoryHud stage={layout.stage} s={layout.scale} />
         {!layout.phone && <Rail width={width} height={height} />}
+      </ScreenLayer>
+      <ScreenLayer priority={4}>
+        <Loader />
       </ScreenLayer>
     </>
   )
