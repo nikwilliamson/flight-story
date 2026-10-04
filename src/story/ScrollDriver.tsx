@@ -13,6 +13,7 @@ import { PACING, playFor } from './pacing'
 /** Above this many legs of catch-up outside the chapter's range, cut instead of animating. */
 const SNAP_LEGS = 250
 
+const ids = (list: number[] = []) => list.map((id) => id - 1)
 /** Chapters small enough to frame whole keep every leg's airports in view (Nik); big ones keep their authored shot. */
 const FIT_LEGS = 40
 const SHOTS = CHAPTERS.map((ch) => {
@@ -23,7 +24,6 @@ const SHOTS = CHAPTERS.map((ch) => {
 })
 
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
-const ids = (list: number[] = []) => list.map((id) => id - 1)
 const JUMP_INDEX = CHAPTERS.findIndex((c) => c.jump)
 const LAPS_INDEX = CHAPTERS.findIndex((c) => c.scene === 'laps')
 const MOON_INDEX = CHAPTERS.findIndex((c) => c.scene === 'moon')
