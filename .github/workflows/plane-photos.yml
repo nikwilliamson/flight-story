@@ -29,7 +29,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install pillow
-      - run: set -o pipefail; python scripts/fetch_tail_photos.py ${{ inputs.all && '--all' || '' }} | tee fetch.log
+      - run: set -o pipefail; python scripts/fetch_tail_photos.py ${{ (github.event_name == 'push' || inputs.all) && '--all' || '' }} | tee fetch.log
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898732+github-actions[bot]@users.noreply.github.com"

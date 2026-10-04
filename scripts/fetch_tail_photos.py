@@ -124,7 +124,9 @@ def pick(reg: str, families: set[str], airlines: set[str], year: int | None) -> 
         aspect = info["width"] / max(info["height"], 1)
         shot = re.search(r"(19|20)\d\d", meta(p, "DateTimeOriginal"))
         drift = abs(int(shot.group()) - year) if shot and year else 15
-        return (any(a.lower() in haystack for a in airlines),  # Steve's airline's livery
+        airframes = sum(c.strip().endswith("(aircraft)") for c in meta(p, "Categories").split("|"))
+        return (airframes <= 1,                                # one plane, not a ramp full of them
+                any(a.lower() in haystack for a in airlines),  # Steve's airline's livery
                 1.3 <= aspect <= 2.2,                         # card-friendly landscape
                 info["width"] >= 1200,
                 -drift)                                       # close to when he flew it
