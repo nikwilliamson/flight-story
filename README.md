@@ -18,4 +18,6 @@ Fare and hotel never leave the script. Notes are kept in the data but never disp
 Every push to `main` builds and deploys to GitHub Pages (`.github/workflows/deploy.yml`). Pull requests build only.
 
 ## Debug hash params
-`#still` (no auto-rotate), `#raw` (no post effects), `#lat=28&lon=-81` (start view), `#classic` (stylized atmosphere only).
+- `#shot=hockey` frames one chapter's shot (names in `src/story/shots.ts`); `#tour` steps through all of them.
+- `#hl=trip-266` lights a set of legs (`airport-MCO`, `airline-UA`, `family-B747`, `plane-G-VIRG` work too).
+- `#raw` (no post effects), `#noui` (globe only), `#classic` (stylized atmosphere only), `#probe` (exposes the camera).
