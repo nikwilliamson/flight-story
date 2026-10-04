@@ -1,4 +1,5 @@
-import { airports, legs, totalsThrough } from '../data'
+import { airports } from '../data'
+import { facts } from '../data/facts'
 import { Vector3 } from 'three'
 import { latLonToVec3 } from '../geo'
 
@@ -6,17 +7,18 @@ import { latLonToVec3 } from '../geo'
 const EARTH_RADIUS_KM = 6371
 const MOON_RADIUS_KM = 1737.4
 const MOON_DISTANCE_KM = 384_400
-const MOON_ROUND_TRIP_MI = 2 * 238_855
 
 export const MOON_RADIUS = MOON_RADIUS_KM / EARTH_RADIUS_KM
 export const MOON_DISTANCE = MOON_DISTANCE_KM / EARTH_RADIUS_KM
 /** Where the Moon sits: a little north of the Atlantic side, so it rises beside the opening view. */
 export const MOON_POSITION = latLonToVec3(8, -20, MOON_DISTANCE)
 
-const total = totalsThrough(legs.length).miles
-/** How many times the whole log would wrap the Earth at the equator, and how many Earth-Moon round trips it is. */
-export const LAPS = totalsThrough(legs.length).aroundEarth
-export const MOON_TRIPS = total / MOON_ROUND_TRIP_MI
+/**
+ * How many times the whole log would wrap the Earth at the equator, and how many Earth-Moon round trips it is: the
+ * same figures as the story copy (facts.ts), so the line, the HUD and the cards always agree.
+ */
+export const LAPS = facts.laps
+export const MOON_TRIPS = facts.moonTrips
 
 const mco = airports.findIndex((a) => a.code === 'MCO')
 /** Where both drawings start: Orlando, home for most of the log. */
