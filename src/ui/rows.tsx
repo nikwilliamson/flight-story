@@ -1,6 +1,6 @@
 import type * as THREE from 'three'
-import type { ReactNode } from 'react'
-import type { Module } from '../story/chapters'
+import { useEffect, useState, type ReactNode } from 'react'
+import type { Module, Plane } from '../story/chapters'
 import { Glass } from './Glass'
 import { Label } from './Label'
 import { fonts } from './fonts'
@@ -215,6 +215,12 @@ export function moduleRow(m: Module, width: number, s: number): Row {
         ),
       }
     }
+    case 'planes': {
+      return {
+        gap,
+        render: (y, onHeight) => <PlaneList y={y} width={width} s={s} label={m.label} planes={m.planes} onHeight={onHeight} />,
+      }
+    }
     case 'nights': {
       const cols = 10
       const spacing = 4 * s
@@ -267,4 +273,66 @@ function Fact({ y, width, inset, s, text, onHeight }: { y: number; width: number
 /** A short amber tick beside the FUN FACT label. */
 function FactRule({ y, s }: { y: number; s: number }) {
   return <Glass x={0} y={y + 1} width={2 * s} height={LABEL * s * 1.3} radius={1} glow={0} fill={1} color={ui.international} />
+}
+
+/**
+ * Airframe cards stacked on small glass panels: aircraft and tail, its age and where he flew it (mono), then its
+ * story. Each story is measured, so the list reports its height once every card has typeset.
+ */
+function PlaneList({ y, width, s, label, planes, onHeight }: { y: number; width: number; s: number; label: string; planes: Plane[]; onHeight: (h: number) => void }) {
+  const [stories, setStories] = useState<(number | undefined)[]>([])
+  const pad = 12 * s
+  const spacing = 8 * s
+  const title = 16 * s
+  const meta = 11 * s
+  const metaHeight = 2 * meta * 1.4
+  const head = labelHeight(s) + 8 * s
+  const heights = planes.map((p, i) => (p.story ? stories[i] : 0))
+  const ready = heights.every((h) => h !== undefined)
+  const cards: { top: number; height: number }[] = []
+  let cursor = head
+  planes.forEach((p, i) => {
+    const height = 2 * pad + title * 1.2 + 6 * s + metaHeight + (p.story ? 8 * s + (heights[i] ?? 0) : 0)
+    cards.push({ top: cursor, height })
+    cursor += height + spacing
+  })
+  const total = cursor - spacing
+  useEffect(() => {
+    if (ready) onHeight(total)
+  }, [ready, total, onHeight])
+
+  return (
+    <group>
+      <SectionLabel y={y} text={label} s={s} />
+      {planes.map((p, i) => {
+        const top = y + cards[i].top
+        const inner = width - 2 * pad - 3 * s
+        const x = pad + 3 * s
+        return (
+          <group key={p.leg}>
+            {ready && <Glass x={0} y={top} width={width} height={cards[i].height} radius={8 * s} glow={0} fill={0.55} color={ui.chip} />}
+            <Glass x={0} y={top + pad} width={2 * s} height={title * 1.2} radius={1} glow={0} fill={1} color={ui.international} />
+            <Label x={x} y={top + pad} size={title} color={ui.ink} font={fonts.displayMedium} lineHeight={1.2} width={inner} nowrap>
+              {p.title}
+            </Label>
+            <Label x={x} y={top + pad + title * 1.2 + 6 * s} size={meta} color={ui.inkDim} font={fonts.mono} lineHeight={1.4} width={inner} nowrap>
+              {p.meta}
+            </Label>
+            {p.story && (
+              <Label
+                x={x}
+                y={top + pad + title * 1.2 + 6 * s + metaHeight + 8 * s}
+                size={14 * s}
+                color={ui.ink}
+                width={inner}
+                onHeight={(h) => setStories((prev) => (Math.abs((prev[i] ?? -1) - h) < 0.5 ? prev : Object.assign([...prev], { [i]: h })))}
+              >
+                {p.story}
+              </Label>
+            )}
+          </group>
+        )
+      })}
+    </group>
+  )
 }

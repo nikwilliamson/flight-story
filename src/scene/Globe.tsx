@@ -17,6 +17,8 @@ import { ScrollDriver } from '../story/ScrollDriver'
 import { UiLayer } from '../ui/UiLayer'
 import { Moon } from './Moon'
 import { DistanceTracks } from './DistanceTracks'
+import { FieldRings } from './FieldRings'
+import { JumpLayer } from './JumpLayer'
 
 /** How much of the stylized glow stays under the physical layer: the night-side rim and the wide halo. */
 const CLASSIC_GAIN = 0.55
@@ -68,8 +70,10 @@ export function Globe() {
         <Outlines />
         <Arcs />
         <Airports />
+        <FieldRings />
         <DistanceTracks />
       </Suspense>
+      <JumpLayer />
       <StoryCamera />
       <DebugHash />
       <ScrollDriver />

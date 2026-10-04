@@ -6,6 +6,7 @@ import { Rail } from './Rail'
 import { ScreenLayer } from './ScreenLayer'
 import { StoryCards } from './StoryCards'
 import { StoryHud } from './StoryHud'
+import { JumpDrop } from './JumpDrop'
 
 /**
  * The interface, drawn in its own screen-space scene after the globe (and after its bloom), in CSS px with the
@@ -23,6 +24,7 @@ export function UiLayer() {
         <StoryCards layout={layout} viewport={height} />
       </ScreenLayer>
       <ScreenLayer priority={3}>
+        <JumpDrop />
         <StoryHud stage={layout.stage} s={layout.scale} />
         {!layout.phone && <Rail width={width} height={height} />}
       </ScreenLayer>

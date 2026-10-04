@@ -13,6 +13,8 @@ export const timeline = {
   time: STORY_END,
   /** First leg of the chapter on screen: it and later legs draw bright, earlier ones settle into dim history. */
   focusFrom: Infinity,
+  /** Lit legs show even if the timeline hasn't reached them (asides that break chronology, the tabs). */
+  reveal: false,
 }
 
 /** Last index whose key is <= t (binary search); -1 when t is before the first. */

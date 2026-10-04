@@ -1,6 +1,7 @@
 import { airports, legs } from '../data'
 import { facts, fmt, span } from '../data/facts'
-import { groups, planeGroups } from '../data/indexes'
+import { airlineGroups, groups, planeGroups } from '../data/indexes'
+import { SAFETY_NETWORK_FACT, STORIES } from '../content/stories'
 import type { Leg } from '../data/types'
 import { legDate } from './timeline'
 import { SHOTS } from './shots'
@@ -15,6 +16,16 @@ export type Module =
   | { kind: 'pass'; label: string; from: [string, string]; to: [string, string]; rows: [string, string][] }
   | { kind: 'table'; label: string; rows: string[][] }
   | { kind: 'nights'; label: string; nights: (string | null)[] }
+  | { kind: 'planes'; label: string; planes: Plane[] }
+
+/** An airframe card: what it was, how old, where he flew it, and its story if it has one. */
+export interface Plane {
+  /** Leg id. */
+  leg: number
+  title: string
+  meta: string
+  story?: string
+}
 
 export interface Chapter {
   id: string
@@ -33,6 +44,8 @@ export interface Chapter {
   highlight?: number[]
   /** Scroll length while the card is locked, in screen heights. */
   travel: number
+  /** The skydive: the onboard footage plays behind the globe, scrubbed by this chapter's scroll. */
+  jump?: boolean
 }
 
 const legsOf = ([a, b]: [number, number]) => legs.slice(a - 1, b)
@@ -96,6 +109,20 @@ function precision(range: [number, number]): Module {
   return { kind: 'stats', label: 'How exact the dates are', items: [['Legs', fmt(list.length)], ['Exact day', share(['Exact'])], ['Month', share(['Month', 'Range'])], ['Year only', share(['Year', 'Unknown'])]] }
 }
 
+function planes(label: string, ids: number[]): Module {
+  return {
+    kind: 'planes',
+    label,
+    planes: ids.map((id) => {
+      const l = legs[id - 1]
+      const flown = Number(l.sort.slice(0, 4))
+      const age = !l.built ? `Flown ${flown}` : flown - l.built < 1 ? `Built ${l.built} · brand new when he flew it` : `Built ${l.built} · ${flown - l.built} years old when he flew it`
+      const where = l.from === l.to ? `${airports[l.from].city} joyride` : `${airports[l.from].city} to ${airports[l.to].city}`
+      return { leg: id, title: [l.aircraft, l.tail].filter(Boolean).join(' · '), meta: `${age}\n${where}, ${flown}`, story: STORIES[id] }
+    }),
+  }
+}
+
 const first = legs[0]
 const longestLeg = legs[facts.longest[0].id - 1]
 const hopper = facts.busiestDay.legs
@@ -107,6 +134,11 @@ const mostFlown = planeGroups[0].key === hopperTail && planeGroups[1].count < ho
 const hopperFact = `${hopperLandings === 6 ? 'Six' : fmt(hopperLandings)} of those landings were the same plane, ${hopperTail}. ${mostFlown ? `He flew on it ${hopperPlane.count} times, more than any other plane he ever boarded.` : `He flew on it ${hopperPlane.count} times in all.`}`
 const hndItm = facts.topRoutes.find((r) => r.route === 'HND–ITM')?.legs ?? 0
 const last = legs[legs.length - 1]
+const JOYRIDES = [75, 836, 1003, 723, 990, 1385]
+const AIRFRAMES = [98, 990, 1520, 1452]
+const LATER_LIVES = [1093, 989, 1139, 1494]
+const defunct = airlineGroups.filter((g) => g.defunct)
+const defunctIds = defunct.flatMap((g) => [...g.legs].map((i) => i + 1)).sort((a, b) => a - b)
 const RANGES = {
   first: [1, 4],
   summers: [5, 20],
@@ -118,6 +150,7 @@ const RANGES = {
   longOnes: [783, 974],
   hopper: [hopper[0], hopper.at(-1)!],
   peak: [983, 1316],
+  jump: [1385, 1385],
   stillGoing: [1317, legs.length],
 } satisfies Record<string, [number, number]>
 
@@ -280,6 +313,63 @@ export const CHAPTERS: Chapter[] = [
     travel: 2,
   },
   {
+    id: 'joyrides',
+    label: 'Joyrides',
+    eyebrow: 'Aside',
+    title: 'Not just airliners',
+    body: "An aerobatic ride in a Ray-Ban team Pitts. A 1929 Ford Trimotor, a 1931 barnstormer and a 1942 Stearman from a grass field in Polk City. A DC-3 that flew on D-Day. And in 2018, a flight he didn't land with: he jumped out.",
+    modules: [planes('Joyrides, warbirds and one skydive', JOYRIDES)],
+    shot: SHOTS.joyrides,
+    // Asides break chronology on purpose: the lines and the year hold where the peak left them.
+    range: RANGES.peak,
+    hold: true,
+    highlight: [75, 723, 836, 1003, 1385],
+    travel: 1.6,
+  },
+  {
+    id: 'jump',
+    label: 'Jump',
+    eyebrow: '18 August 2018 · Titusville, Florida',
+    title: 'The jump',
+    body: `Leg ${fmt(RANGES.jump[0])} starts and ends at the same airport, and Steve wasn't on board for the landing. He rode a Beech King Air up from the Skydive Space Center drop zone with a cabin full of jumpers, then went out the door.\n\nNik was on the plane with a camera. Scroll to ride up with them.`,
+    modules: [planes('The ride up', [RANGES.jump[0]])],
+    shot: SHOTS.jump,
+    range: RANGES.peak,
+    hold: true,
+    highlight: [RANGES.jump[0]],
+    jump: true,
+    travel: 3.2,
+  },
+  {
+    id: 'airframes',
+    label: 'Airframes',
+    eyebrow: 'Aside',
+    title: 'Planes with a past',
+    body: `He flew on at least ${fmt(facts.planes)} different airplanes. A few of them have stories of their own.`,
+    modules: [
+      planes('Notable airframes', AIRFRAMES),
+      { kind: 'fact', text: `The average plane he flew was ${fmt(facts.averagePlaneAge, 1)} years old. ${facts.newPlaneLegs} of his flights were on planes in their first year.` },
+    ],
+    shot: SHOTS.airframes,
+    range: RANGES.peak,
+    hold: true,
+    highlight: AIRFRAMES,
+    travel: 1.8,
+  },
+  {
+    id: 'later',
+    label: 'Later',
+    eyebrow: 'Aside',
+    title: 'Later lives',
+    body: 'Planes keep flying after you get off. Two of Steve\'s were later written off, and no one died in either. Others had close calls years after he flew them.',
+    modules: [planes('What happened next', LATER_LIVES), { kind: 'fact', text: SAFETY_NETWORK_FACT }],
+    shot: SHOTS.later,
+    range: RANGES.peak,
+    hold: true,
+    highlight: LATER_LIVES,
+    travel: 1.8,
+  },
+  {
     id: 'stillGoing',
     label: '2015',
     eyebrow: '2015–2025',
@@ -289,6 +379,20 @@ export const CHAPTERS: Chapter[] = [
     shot: SHOTS.stillGoing,
     range: RANGES.stillGoing,
     travel: 1.8,
+  },
+  {
+    id: 'gone',
+    label: 'Gone',
+    eyebrow: '1965–2025',
+    title: 'Gone now',
+    body: `${fmt(defunctIds.length)} legs were on airlines that no longer exist: Eastern, Pan Am, TWA, Braniff, Northwest, Continental, US Airways, AirTran and more. Some airports went too.`,
+    modules: [
+      { kind: 'rank', label: 'Airlines that are gone', items: defunct.slice(0, 6).map((g) => [g.label, fmt(g.count)]) },
+      { kind: 'rank', label: 'Airports he used that have since closed', items: facts.closedAirports.map(({ airport, legs }) => [`${airport.code} · ${airport.name}, closed ${airport.closed!.slice(0, 4)}`, fmt(legs)]) },
+    ],
+    shot: SHOTS.gone,
+    highlight: defunctIds,
+    travel: 1.4,
   },
   {
     id: 'all',

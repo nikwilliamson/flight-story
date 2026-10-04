@@ -23,6 +23,9 @@ export const wrap = (d: number) => ((((d + 540) % 360) + 360) % 360) - 180
 /** Where the camera is right now (it lags the shot). Read by anything that waits for the camera to arrive. */
 export const camera = { lon: -40, lat: 28, zoom: 1 }
 
+/** The globe's camera, for screen-space layers (their own scenes have their own cameras) to project with. */
+export const view: { camera: PerspectiveCamera | null } = { camera: null }
+
 /** True once the camera is visually at the shot: within 2° and 6% zoom (camera-spec.md). */
 export const settledOn = (shot: Shot) =>
   Math.abs(wrap(shot.lon - camera.lon)) < 2 && Math.abs(shot.lat - camera.lat) < 2 && Math.abs(Math.log(camera.zoom / shot.zoom)) < 0.06
@@ -41,6 +44,9 @@ export function StoryCamera() {
   // Mutable across renders: a resize re-renders this component but must not reset the move in progress.
   const state = useRef({ target: { ...useStory.getState().shot }, shot: useStory.getState().shot, userTookOver: false }).current
   const { target } = state
+  useEffect(() => {
+    view.camera = cam
+  }, [cam])
 
   useEffect(() => {
     const el = gl.domElement

@@ -157,6 +157,7 @@ const fragmentShader = /* glsl */ `
   uniform float uHistory;
   uniform float uGhost;
   uniform float uDim;
+  uniform float uReveal;
   uniform vec3 uDomestic;
   uniform vec3 uInternational;
   uniform vec3 uGround;
@@ -194,8 +195,9 @@ const fragmentShader = /* glsl */ `
     // The line is laid down behind the plane as it flies, already at its settled look, so an arc draws itself
     // from A to B and simply stays; the comet head is the only thing that comes and goes.
     float a = max(head * 2.4, ghost * apex * flown) * pattern;
-    // Highlight: lit legs fade to white at full strength, everything else dims (both eased on the CPU).
-    float lit = max(a, 0.85 * apex * flown * pattern);
+    // Highlight: lit legs fade to white at full strength, everything else dims (both eased on the CPU). In an aside
+    // a lit leg the timeline hasn't reached yet fades in whole.
+    float lit = max(a, 0.85 * apex * max(flown, uReveal) * pattern);
     a = mix(a * (1.0 - ${DIM.toFixed(2)} * uDim), lit, vHighlight);
     color = mix(color, vec3(1.0), vHighlight);
     gl_FragColor = vec4(color * a, a) * uShow;
@@ -219,6 +221,7 @@ function makeMaterial() {
       uHistory: { value: 1 },
       uGhost: { value: 0.26 },
       uDim: { value: 0 },
+      uReveal: { value: 0 },
       uHighlight: { value: highlight.texture },
       uHighlightWidth: { value: highlight.width },
       uDomestic: { value: palette.domestic },
@@ -242,8 +245,9 @@ export function Arcs() {
     if (mesh.current) mesh.current.visible = distance.routes > 0
     material.uniforms.uResolution.value.set(size.width * viewport.dpr, size.height * viewport.dpr)
     material.uniforms.uWidth.value = 1.1 * viewport.dpr
-    const { time, focusFrom } = timeline
+    const { time, focusFrom, reveal } = timeline
     material.uniforms.uTime.value = time
+    material.uniforms.uReveal.value = reveal ? 1 : 0
     // The finished globe has no current chapter: everything shows at its settled brightness.
     const done = time >= STORY_END || !Number.isFinite(focusFrom)
     material.uniforms.uTripStart.value = done ? 1e9 : focusFrom

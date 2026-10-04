@@ -99,6 +99,12 @@ export const facts = {
   equatorCrossings: legs.filter(crossesEquator).length,
   dateLineCrossings: legs.filter(crossesDateLine).length,
   averagePlaneAge: ages.reduce((a, b) => a + b, 0) / ages.length,
+  /** Legs on a plane in its first year (built the year he flew it, or listed as built later). */
+  newPlaneLegs: ages.filter((a) => a <= 0).length,
+  /** Airports he used that have since closed, with how many legs touched each, most first. */
+  closedAirports: [...countBy(legs.flatMap((l) => [...new Set([l.from, l.to])].filter((i) => i >= 0 && airports[i].closed)), (i) => i)]
+    .map(([i, list]) => ({ airport: airports[Number(i)], legs: list.length }))
+    .sort((a, b) => b.legs - a.legs),
   topAirline: airlineGroups[0],
   defunctAirlineLegs: airlineGroups.filter((g) => g.defunct).reduce((n, g) => n + g.count, 0),
   jumbo: span(legs.filter((l) => l.family === 'B747')),

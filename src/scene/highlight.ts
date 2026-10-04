@@ -27,6 +27,9 @@ export const highlight = {
   dim: 0,
 }
 
+/** How lit leg index i is right now, 0–1 (eased). */
+export const litAmount = (i: number) => current[i] ?? 0
+
 let applied: readonly number[] | null = null
 let settling = false
 

@@ -10,13 +10,16 @@ import { fonts } from './fonts'
 import { ui } from './tokens'
 
 const SPACING = 22
+/** Room kept clear above and below the rail, px. */
+const MARGIN = 60
 
 /** Chapter dots down the right edge. Hover names the chapter; click scrolls to it. Desktop only. */
 export function Rail({ width, height }: { width: number; height: number }) {
   const dots = useRef<(Mesh | null)[]>([])
   const [hover, setHover] = useState(-1)
   const x = width - 26
-  const top = height / 2 - ((CHAPTERS.length - 1) * SPACING) / 2
+  const spacing = Math.min(SPACING, (height - 2 * MARGIN) / (CHAPTERS.length - 1))
+  const top = height / 2 - ((CHAPTERS.length - 1) * spacing) / 2
 
   useFrame(() => {
     dots.current.forEach((d, i) => {
@@ -40,7 +43,7 @@ export function Rail({ width, height }: { width: number; height: number }) {
         <mesh
           key={c.id}
           ref={(m) => void (dots.current[i] = m)}
-          position={[x, -(top + i * SPACING), 2]}
+          position={[x, -(top + i * spacing), 2]}
           onPointerOver={() => setHover(i)}
           onPointerOut={() => setHover(-1)}
           onClick={() => go(i)}
@@ -50,7 +53,7 @@ export function Rail({ width, height }: { width: number; height: number }) {
         </mesh>
       ))}
       {hover >= 0 && (
-        <Label x={x - 14} y={top + hover * SPACING - 7} size={11} color={ui.ink} font={fonts.mono} align="right">
+        <Label x={x - 14} y={top + hover * spacing - 7} size={11} color={ui.ink} font={fonts.mono} align="right">
           {CHAPTERS[hover].label}
         </Label>
       )}
