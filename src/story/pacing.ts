@@ -29,6 +29,10 @@ export const PACING = {
   follow: 5,
   /** Camera damping, per second: lower is a slower, floatier move (camera-spec.md: 2.6). */
   camera: 2,
+  /** The Moon chapter's camera, which runs on its own clock: seconds to swing square-on to the Earth–Moon line, and to
+   * pull back until both are on screen at true scale (they were 2.5 and 6). */
+  moonSwing: 1.2,
+  moonZoom: 2.5,
   /** How fast the camera turns into the direction of travel, per second. */
   yaw: 0.8,
   /** Debouncing: a new chapter's shot closer than this (degrees, and log-zoom) to the current one doesn't move the camera. */
