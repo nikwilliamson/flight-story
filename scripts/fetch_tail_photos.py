@@ -9,7 +9,7 @@ the aircraft type Steve flew on that tail. Tails without such a photo are listed
     python scripts/fetch_tail_photos.py            # fetch tails not in the manifest yet
     python scripts/fetch_tail_photos.py --all      # re-check every tail
 """
-import html, io, json, re, sys, time, urllib.parse, urllib.request
+import html, io, json, re, sys, time, urllib.error, urllib.parse, urllib.request
 from collections import defaultdict
 from pathlib import Path
 from PIL import Image
@@ -52,9 +52,14 @@ def api(**params) -> dict:
         try:
             req = urllib.request.Request(f"{API}?{urllib.parse.urlencode(params)}", headers={"User-Agent": UA})
             with urllib.request.urlopen(req, timeout=60) as r:
-                return json.load(r)
+                body = r.read()
+            return json.loads(body)
+        except urllib.error.HTTPError as e:
+            body = e.read()
+            print(f"  api retry {attempt + 1}: HTTP {e.code} {body[:300]!r}", file=sys.stderr)
+            time.sleep(2 ** attempt * 3)
         except Exception as e:  # noqa: BLE001 — Commons rate-limits; back off and retry
-            print(f"  api retry {attempt + 1}: {e}", file=sys.stderr)
+            print(f"  api retry {attempt + 1}: {e} {locals().get('body', b'')[:300]!r}", file=sys.stderr)
             time.sleep(2 ** attempt * 3)
     raise RuntimeError(f"Commons API failed for {params}")
 
