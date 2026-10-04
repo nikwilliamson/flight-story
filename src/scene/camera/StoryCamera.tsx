@@ -123,6 +123,14 @@ export function StoryCamera() {
   return null
 }
 
+/** Eye distance from the globe's centre at which it frames at `zoom` in the stage (see frame). */
+export function distanceForZoom(zoom: number, fov: number, height: number, stage: { width: number; height: number }) {
+  const radiusPx = RADIUS_SHARE * Math.min(stage.width, stage.height) * zoom
+  // Silhouette half-angle α: its screen radius is (height / 2) · tan α / tan(fov / 2).
+  const tanAlpha = (2 * radiusPx * Math.tan((fov * Math.PI) / 360)) / height
+  return Math.max(1 + MIN_ALTITUDE, 1 / Math.sin(Math.atan(tanAlpha)))
+}
+
 const clampZoom = (z: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z))
 
 /**
@@ -131,10 +139,7 @@ const clampZoom = (z: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z))
  */
 function frame(cam: PerspectiveCamera, width: number, height: number, stage: { x: number; y: number; width: number; height: number } | null) {
   const s = stage ?? { x: 0, y: 0, width, height }
-  const radiusPx = RADIUS_SHARE * Math.min(s.width, s.height) * camera.zoom
-  // Silhouette half-angle α: its screen radius is (height / 2) · tan α / tan(fov / 2).
-  const tanAlpha = (2 * radiusPx * Math.tan((cam.fov * Math.PI) / 360)) / height
-  const distance = Math.max(1 + MIN_ALTITUDE, 1 / Math.sin(Math.atan(tanAlpha)))
+  const distance = distanceForZoom(camera.zoom, cam.fov, height, s)
   latLonToVec3(camera.lat, camera.lon, distance, cam.position)
   // Nothing sits higher than the tallest arc, so the near plane can ride just under it: close-ups (the jump, at
   // zoom 16) keep depth precision without a logarithmic depth buffer.

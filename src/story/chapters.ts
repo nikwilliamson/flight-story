@@ -46,6 +46,8 @@ export interface Chapter {
   travel: number
   /** The skydive: the onboard footage plays behind the globe, scrubbed by this chapter's scroll. */
   jump?: boolean
+  /** The distance section: one line laps the Earth, then unspools to the Moon and back, scrubbed by the scroll. */
+  scene?: 'laps' | 'moon'
 }
 
 const legsOf = ([a, b]: [number, number]) => legs.slice(a - 1, b)
@@ -393,6 +395,31 @@ export const CHAPTERS: Chapter[] = [
     shot: SHOTS.gone,
     highlight: defunctIds,
     travel: 1.4,
+  },
+  {
+    id: 'laps',
+    label: 'Laps',
+    eyebrow: 'How far is that',
+    title: `${fmt(facts.laps)} times around the Earth`,
+    body: `Laid end to end, ${fmt(facts.miles)} miles would wrap the planet ${fmt(facts.laps, 1)} times. Here it is as one line, starting from home in Orlando.`,
+    modules: [
+      { kind: 'fact', text: `About ${fmt(facts.airTimeDays)} days in the air. Roughly six months of his life spent aloft.` },
+      { kind: 'fact', text: `Light would cover all of it in about ${fmt(facts.lightSeconds)} seconds.` },
+    ],
+    shot: SHOTS.laps,
+    scene: 'laps',
+    travel: 2.6,
+  },
+  {
+    id: 'moon',
+    label: 'Moon',
+    eyebrow: 'How far is that',
+    title: `To the Moon and back, almost ${Math.ceil(facts.moonTrips)} times`,
+    body: `Now unwind it. Keep the same line, pull back far enough to see the Moon at its real size and distance, and let the line peel off the Earth. Every lap that comes off becomes part of a figure 8 round the Moon, until it reaches the Moon and back ${fmt(facts.moonTrips, 1)} times.`,
+    modules: [{ kind: 'fact', text: `That's still only ${fmt(facts.sunShare * 100)}% of the way to the Sun.` }],
+    shot: SHOTS.moon,
+    scene: 'moon',
+    travel: 3.6,
   },
   {
     id: 'all',

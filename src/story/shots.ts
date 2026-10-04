@@ -22,8 +22,10 @@ export const SHOTS = {
   later: { lon: -40, lat: 35, zoom: 1.0 },
   stillGoing: { lon: -81.3, lat: 28.4, zoom: 1.5 },
   gone: { lon: -50, lat: 35, zoom: 1.0 },
-  laps: { lon: -25, lat: 12, zoom: 0.8 },
-  moon: { lon: -25, lat: 12, zoom: 0.8 },
+  // The distance chapters fly their own camera (DistanceCamera); these only say where it hands back, over the
+  // Atlantic as in the globe's opening view, so the story camera picks up from there without a jump.
+  laps: { lon: -52, lat: 30, zoom: 1.0 },
+  moon: { lon: -52, lat: 30, zoom: 1.0 },
   all: { lon: -40, lat: 25, zoom: 1.0, spin: true },
 } satisfies Record<string, Shot>
 
