@@ -27,6 +27,8 @@ export type Module =
 export interface Plane {
   /** Leg id. */
   leg: number
+  /** As logged, for its photo. */
+  tail: string | null
   title: string
   meta: string
   story?: string
@@ -127,7 +129,7 @@ function planes(label: string, ids: number[]): Module {
       const flown = Number(l.sort.slice(0, 4))
       const age = !l.built ? `Flown ${flown}` : flown - l.built < 1 ? `Built ${l.built} · brand new when he flew it` : `Built ${l.built} · ${flown - l.built} years old when he flew it`
       const where = l.from === l.to ? `${airports[l.from].city} joyride` : `${airports[l.from].city} to ${airports[l.to].city}`
-      return { leg: id, title: [l.aircraft, l.tail].filter(Boolean).join(' · '), meta: `${age}\n${where}, ${flown}`, story: STORIES[id] }
+      return { leg: id, tail: l.tail, title: [l.aircraft, l.tail].filter(Boolean).join(' · '), meta: `${age}\n${where}, ${flown}`, story: STORIES[id] }
     }),
   }
 }

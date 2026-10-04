@@ -2,6 +2,7 @@ import { DataTexture, NearestFilter, RedFormat, UnsignedByteType } from 'three'
 import { legs } from '../data'
 import { useStory } from '../state/store'
 import { PACING } from '../story/pacing'
+import { ease } from '../motion'
 
 /** Highlight changes fade, never snap (Nik); the rate is in pacing.ts. */
 const WIDTH = 256
@@ -48,7 +49,7 @@ export function stepHighlight(dt: number) {
   // skydive) light as rings, and dimming every route around them just leaves an empty globe (Nik).
   const dimTarget = set.some(hasArc) ? 1 : 0
   if (!settling && highlight.dim === dimTarget) return
-  const s = 1 - Math.exp(-dt * PACING.highlight)
+  const s = ease(dt, PACING.highlight)
   let moving = false
   for (let i = 0; i < current.length; i++) {
     const gap = target[i] - current[i]

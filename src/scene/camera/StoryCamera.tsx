@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera, Vector3 } from 'three'
 import { airports, legs } from '../../data'
 import { latLonToVec3 } from '../../geo'
+import { reducedMotion } from '../../motion'
 import { PACING } from '../../story/pacing'
 import { STORY_END, timeline } from '../../story/timeline'
 import { useStory, type Shot } from '../../state/store'
@@ -54,7 +55,6 @@ export const settledOn = (shot: Shot) => {
   return Math.abs(wrap(g.lon - camera.lon)) < 2 && Math.abs(g.lat - camera.lat) < 2 && Math.abs(Math.log(camera.zoom / g.zoom)) < 0.06
 }
 
-const reduceMotion = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /**
  * The wireframe camera: three numbers damped toward the current shot, zoom in log space, longitude the short way.
@@ -158,14 +158,14 @@ export function StoryCamera() {
     if (Math.abs(wanted - state.yawGoal) < PACING.minYaw) state.yawHeld = 0
     else if ((state.yawHeld += dt) > PACING.yawHold || !flying) [state.yawGoal, state.yawHeld] = [wanted, 0]
     const yawTarget = state.yawGoal
-    camera.yaw += (yawTarget - camera.yaw) * (reduceMotion() ? 1 : 1 - Math.exp(-dt * PACING.yaw))
+    camera.yaw += (yawTarget - camera.yaw) * (reducedMotion() ? 1 : 1 - Math.exp(-dt * PACING.yaw))
 
-    const s = reduceMotion() ? 1 : 1 - Math.exp(-dt * PACING.camera)
+    const s = reducedMotion() ? 1 : 1 - Math.exp(-dt * PACING.camera)
     camera.lon += wrap(target.lon - camera.lon) * s
     camera.lat += (target.lat - camera.lat) * s
     camera.zoom = Math.exp(Math.log(camera.zoom) + (Math.log(target.zoom) - Math.log(camera.zoom)) * s)
     // The globe never sits dead still (v48): a slow turn that eases off as the camera closes in, so close-ups barely move.
-    if (!state.shot.spin && !state.dragging && !reduceMotion()) drift.lon += (dt * DRIFT_DEG_PER_S) / Math.max(1, camera.zoom * camera.zoom)
+    if (!state.shot.spin && !state.dragging && !reducedMotion()) drift.lon += (dt * DRIFT_DEG_PER_S) / Math.max(1, camera.zoom * camera.zoom)
 
     frame(cam, size.width, size.height, useStory.getState().stage, { lon: camera.lon + drift.lon, lat: camera.lat, zoom: camera.zoom, yaw: camera.yaw })
   })

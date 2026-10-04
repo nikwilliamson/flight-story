@@ -7,6 +7,7 @@ import { CHAPTERS } from '../../story/chapters'
 import { distance, LAP_FRAME, MOON_DISTANCE, MOON_POSITION, ORIGIN } from '../../story/distance'
 import { scroll } from '../../story/scrollState'
 import { RETURN_PROGRESS } from '../DistanceTracks'
+import { ease } from '../../motion'
 import { PACING } from '../../story/pacing'
 import { distanceForZoom } from './StoryCamera'
 
@@ -90,7 +91,7 @@ export function DistanceCamera() {
     // together as the return lands on the globe.
     distance.routes = back > 0 ? smooth((back - 0.6) / 0.4) : 1 - smooth(rig.sectionTime / ROUTES_OUT)
 
-    const follow = 1 - Math.exp(-DAMPING * dt)
+    const follow = ease(dt, DAMPING)
     rig.weight += ((inSection ? 1 : 0) - rig.weight) * follow
     if (rig.weight < 0.001) {
       rig.ready = false
