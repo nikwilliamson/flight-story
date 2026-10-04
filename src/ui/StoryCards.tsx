@@ -6,6 +6,7 @@ import { cardTop, planScroll } from '../story/scrollPlan'
 import { scroll } from '../story/scrollState'
 import type { Layout } from './layout'
 import { StoryCard } from './StoryCard'
+import { useStory } from '../state/store'
 
 /**
  * Every chapter card, laid out once their text has been measured, then moved with the page scroll each frame.
@@ -36,12 +37,15 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
   useFrame(() => {
     if (!plan) return
     const y = window.scrollY
+    // Once a tab is open, its panel takes the closing card's place.
+    const tabOpen = useStory.getState().tab !== null
+    const last = plan.segments.length - 1
     plan.segments.forEach((seg, i) => {
       const g = groups.current[i]
       if (!g) return
       const top = cardTop(seg, y, viewport)
       g.position.set(layout.card.x, -top, 0)
-      g.visible = top < viewport && top + seg.height > 0
+      g.visible = top < viewport && top + seg.height > 0 && !(tabOpen && i === last)
     })
   })
 

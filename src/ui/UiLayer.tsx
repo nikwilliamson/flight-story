@@ -7,6 +7,8 @@ import { ScreenLayer } from './ScreenLayer'
 import { StoryCards } from './StoryCards'
 import { StoryHud } from './StoryHud'
 import { JumpDrop } from './JumpDrop'
+import { TabBar } from './TabBar'
+import { TabPanel } from './TabPanel'
 
 /**
  * The interface, drawn in its own screen-space scene after the globe (and after its bloom), in CSS px with the
@@ -22,9 +24,11 @@ export function UiLayer() {
       {/* Phones: cards scroll in the space under the pinned globe, never over it. */}
       <ScreenLayer priority={2} clip={layout.phone ? { x: 0, y: layout.stage.height, width, height: height - layout.stage.height } : null}>
         <StoryCards layout={layout} viewport={height} />
+        <TabPanel layout={layout} />
       </ScreenLayer>
       <ScreenLayer priority={3}>
         <JumpDrop />
+        <TabBar layout={layout} />
         <StoryHud stage={layout.stage} s={layout.scale} />
         {!layout.phone && <Rail width={width} height={height} />}
       </ScreenLayer>
