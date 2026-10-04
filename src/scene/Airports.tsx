@@ -90,6 +90,7 @@ export function Airports() {
           uShow: { value: 1 },
           uStory: { value: STORY_END },
           uScale: { value: 1 },
+          uResolutionY: { value: 900 },
           uColor: { value: palette.airport },
           uHome: { value: palette.home },
         },
@@ -101,6 +102,7 @@ export function Airports() {
           attribute float aLanded;
           uniform float uStory;
           uniform float uScale;
+          uniform float uResolutionY;
           varying float vWeight;
           varying float vSince;
           varying float vLanded;
@@ -118,9 +120,13 @@ export function Airports() {
             if (vLanded >= 0.0 && vLanded < ${LANDING_RIPPLE.toFixed(2)}) ripple = max(ripple, 5.0 + vLanded * 12.0);
             float extent = max((mix(10.0, 30.0, max(aWeight, 0.0)) + aHome * 6.0) * 0.5, ripple);
             vQ = aCorner * extent;
-            vec3 p = position + (east * vQ.x + north * vQ.y) * ${UNIT} * uScale;
+            // Never bigger than their nominal pixel size at their own depth: with the camera tilted toward the
+            // horizon, discs near the eye would otherwise balloon into ellipses.
+            vec4 centre = modelViewMatrix * vec4(position, 1.0);
+            float pixel = 2.0 * -centre.z / (projectionMatrix[1][1] * uResolutionY);
+            vec3 p = position + (east * vQ.x + north * vQ.y) * min(${UNIT} * uScale, pixel);
             vec4 mv = modelViewMatrix * vec4(p, 1.0);
-            vFacing = dot(normalize(normalMatrix * up), normalize(-mv.xyz));
+            vFacing = dot(normalize(normalMatrix * up), normalize(-centre.xyz));
             vWeight = aWeight;
             vHome = aHome;
             gl_Position = projectionMatrix * mv;
@@ -148,9 +154,9 @@ export function Airports() {
             // blurry), and only a faint halo for the hubs. Kept under the bloom threshold so it isn't smeared.
             float radius = mix(1.6, 4.6, vWeight);
             float disc = edge(r, radius, 0.0);
-            float glow = exp(-max(r - radius, 0.0) / (0.8 + 1.6 * vWeight)) * (0.04 + 0.1 * vWeight) * (1.0 - disc);
+            float glow = exp(-max(r - radius, 0.0) / 0.8) * 0.05 * vWeight * (1.0 - disc);
             // The orange ring below decorates the home airport's disc.
-            vec3 rgb = uColor * (disc * 0.6 + glow);
+            vec3 rgb = uColor * (disc * 0.5 + glow);
             float a = disc + glow;
             // Home: the same disc, circled by an orange ring that keeps a fixed gap from the disc as it grows and a
             // fixed stroke width, with a faint glow.
@@ -181,7 +187,8 @@ export function Airports() {
   )
   const last = useMemo(() => ({ time: Number.NaN }), [])
   const mesh = useRef<Mesh>(null)
-  useFrame(({ camera }) => {
+  useFrame(({ camera, size }) => {
+    material.uniforms.uResolutionY.value = size.height
     // Faded out and skipped entirely while the Moon shot has the screen.
     material.uniforms.uShow.value = distance.routes
     if (mesh.current) mesh.current.visible = distance.routes > 0

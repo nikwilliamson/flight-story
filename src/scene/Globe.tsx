@@ -90,7 +90,7 @@ export function Globe() {
       {!(fullEffects && !debug.has('raw')) && <PlainRender />}
       {fullEffects && !debug.has('raw') && (
         <EffectComposer multisampling={0}>
-          <Bloom mipmapBlur intensity={0.8} luminanceThreshold={0.62} luminanceSmoothing={0.25} radius={0.65} />
+          <Bloom mipmapBlur intensity={0.8} luminanceThreshold={0.72} luminanceSmoothing={0.25} radius={0.65} />
           <Vignette offset={0.32} darkness={0.72} />
         </EffectComposer>
       )}
