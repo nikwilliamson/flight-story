@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { Group } from 'three'
 import { CHAPTERS } from '../story/chapters'
+import { PACING, scrollOf } from '../story/pacing'
 import { cardTop, planScroll } from '../story/scrollPlan'
 import { scroll } from '../story/scrollState'
 import type { Layout } from './layout'
@@ -20,13 +21,12 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
     [],
   )
   // The reading line: a card takes over as its top crosses it. Phones read in the strip under the pinned globe.
-  const column = layout.phone
-    ? { top: layout.card.y, bottom: viewport - 16, centre: false, line: layout.card.y + (viewport - layout.card.y) * 0.3 }
-    : { top: 0, bottom: viewport, centre: true, line: viewport * 0.45 }
+  const top = layout.phone ? layout.card.y : 0
+  const column = { top, bottom: layout.phone ? viewport - 16 : viewport, centre: !layout.phone, line: top + (viewport - top) * PACING.startLine }
 
   const plan = useMemo(() => {
     if (CHAPTERS.some((_, i) => heights[i] === undefined)) return null
-    return planScroll(CHAPTERS.map((_, i) => heights[i]!), column)
+    return planScroll(CHAPTERS.map((ch, i) => ({ height: heights[i]!, scroll: scrollOf(ch) * viewport })), column)
     // column is derived from layout and viewport
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heights, viewport, layout])

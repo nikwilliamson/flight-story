@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { activeAt, cardTop, planScroll } from '../src/story/scrollPlan'
+import { activeAt, cardTop, planScroll, progressAt } from '../src/story/scrollPlan'
 
 const H = 800
-const column = { top: 0, bottom: H, centre: true, line: H * 0.45 }
-const plan = planScroll([300, 500, 1200, 200], column)
+const column = { top: 0, bottom: H, centre: true, line: H * 0.8 }
+const cards = [300, 500, 1200, 200].map((height, i) => ({ height, scroll: [800, 3200, 400, 800][i] }))
+const plan = planScroll(cards, column)
 
 describe('scroll plan', () => {
   it('shows the first card at load, centred', () => {
@@ -27,6 +28,19 @@ describe('scroll plan', () => {
       expect(activeAt(plan, s.at)).toBe(i)
       expect(activeAt(plan, s.at - 5)).toBe(i - 1)
     })
+  })
+
+  it('gives each chapter after the opening its scroll, or at least its card plus a gap', () => {
+    expect(plan.segments[2].at - plan.segments[1].at).toBe(3200)
+    expect(plan.segments[3].at - plan.segments[2].at).toBeGreaterThan(1200)
+  })
+
+  it('scrubs each chapter from 0 at its takeover to 1 at the next', () => {
+    const [, b, c] = plan.segments
+    expect(progressAt(plan, 1, b.at)).toBe(0)
+    expect(progressAt(plan, 1, (b.at + c.at) / 2)).toBeCloseTo(0.5)
+    expect(progressAt(plan, 1, c.at)).toBe(1)
+    expect(progressAt(plan, 3, 0)).toBe(1)
   })
 
   it('scrolls far enough for the last card to take over and show whole', () => {

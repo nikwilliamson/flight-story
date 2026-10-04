@@ -1,9 +1,10 @@
 /**
  * Where every story card sits for any scroll position, in CSS px. Pure, so it can be tested without a browser.
  *
- * No scrolljacking (Nik): the cards are an ordinary column that scrolls with the page, a breathing gap between each.
- * A chapter takes over when its card's top crosses the reading line; what it then does on the globe plays on its own
- * clock (ScrollDriver), however fast or slow the reader scrolls.
+ * No scrolljacking (Nik): the cards are an ordinary column that scrolls with the page. A chapter takes over when its
+ * card's top crosses the reading line, and the scroll from there to the next card's takeover runs it from start to
+ * finish (the wireframe's original scroll-scrubbing). A chapter's scroll length is the room it needs to draw its
+ * legs, so the empty space under a big chapter's card is where its lines draw.
  */
 export interface Segment {
   /** Page y of the card's top. */
@@ -19,20 +20,28 @@ export interface Plan {
   length: number
 }
 
-/** Room between cards, as a share of the column's height: enough to watch a chapter play before the next arrives. */
-const GAP = 0.5
+/** Least room between one card's bottom and the next card's top. */
+const MIN_GAP = 120
 const MARGIN = 24
+
+export interface Card {
+  height: number
+  /** Scroll the chapter runs over, px. */
+  scroll: number
+}
 
 /**
  * `top` / `bottom` = the card column's span on screen; `centre` = start the first card centred in it (desktop);
  * `line` = the reading line, the viewport y a card's top crosses to take over.
  */
-export function planScroll(heights: number[], column: { top: number; bottom: number; centre: boolean; line: number }): Plan {
+export function planScroll(cards: Card[], column: { top: number; bottom: number; centre: boolean; line: number }): Plan {
   const room = column.bottom - column.top
-  const gap = Math.max(160, room * GAP)
   const segments: Segment[] = []
-  heights.forEach((height, i) => {
-    const top = i === 0 ? column.top + (column.centre ? Math.max(MARGIN, (room - height) / 2) : MARGIN) : segments[i - 1].top + segments[i - 1].height + gap
+  cards.forEach(({ height }, i) => {
+    const prev = segments[i - 1]
+    const top = prev
+      ? prev.top + Math.max(prev.height + MIN_GAP, cards[i - 1].scroll)
+      : column.top + (column.centre ? Math.max(MARGIN, (room - height) / 2) : MARGIN)
     segments.push({ top, height, at: i === 0 ? 0 : top - column.line })
   })
   const last = segments.at(-1)
@@ -51,4 +60,12 @@ export function activeAt(plan: Plan, scroll: number) {
     if (scroll >= s.at - 0.5) idx = i
   })
   return idx
+}
+
+/** How far through chapter i the scroll is, 0–1: from its takeover to the next chapter's. The last one is always done. */
+export function progressAt(plan: Plan, i: number, scroll: number) {
+  const seg = plan.segments[i]
+  const next = plan.segments[i + 1]
+  if (!seg || !next) return 1
+  return Math.min(1, Math.max(0, (scroll - seg.at) / Math.max(1, next.at - seg.at)))
 }

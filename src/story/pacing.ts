@@ -1,39 +1,48 @@
+import type { Chapter } from './chapters'
+
 /**
- * Every timing knob in the story, in one place to tune by hand. Seconds unless noted. `npm run dev` hot-reloads
- * this file, and `#ch=<chapter id>` jumps straight to a chapter to replay it.
+ * Every timing knob in the story, in one place to tune by hand. The story is scroll-scrubbed, so pacing is scroll
+ * distance: lengths are in screen heights of scrolling. `npm run dev` hot-reloads this file, and `#ch=hockey&p=0`
+ * jumps to the start of a chapter.
  */
 export const PACING = {
-  /** Every chapter's playback: the floor, and the ceiling however many legs it draws. */
-  minChapter: 6,
-  maxChapter: 60,
-  /** Seconds per leg drawn. 0.08 is half the speed of the first build (Nik). */
-  perLeg: 0.08,
+  /** Where a card's top has to reach for its chapter to take over, as a share of the screen height from the top. */
+  startLine: 0.8,
+  /** Every chapter's scroll: the floor (it always covers the card too), and the ceiling however many legs it draws. */
+  minScroll: 1,
+  /** Scroll every leg-drawing chapter starts from, before its legs add theirs. */
+  base: 0.6,
+  maxScroll: 7,
+  /** Screens of scroll per leg drawn. */
+  perLeg: 0.012,
   /**
-   * Big chapters slow down further: each leg costs perLeg × (1 + legs / slowAfter), so a 50-leg chapter runs about
-   * 1.2× as long per leg and a 300-leg one 2×. Raise it to treat big chapters more like small ones.
+   * Big chapters slow down further: each leg costs perLeg × (1 + legs / slowAfter), so a 50-leg chapter gets about
+   * 1.1× the scroll per leg and a 300-leg one 1.5×. Lower it to stretch big chapters more.
    */
-  slowAfter: 300,
+  slowAfter: 600,
   /** Asides that hold the lines where they are (joyrides, airframes, later lives, gone, all). */
-  hold: 4,
-  /** The skydive. The footage runs in real time between fade-in and the door, so this sets its speed too (19 = 1×). */
-  jump: 19,
-  /** The distance section, which holds the page until it finishes (see pinDistance). */
-  laps: 28,
-  moon: 52,
-  /** The page won't scroll on past the laps and Moon chapters until they've played out (scrolling back still works). */
-  pinDistance: true,
-  /** Beat between the camera arriving and the chapter starting to play (Nik's buffer rule). */
-  lineDelay: 0.5,
+  hold: 1,
+  /** The skydive: its footage scrubs over this much scroll. */
+  jump: 3.5,
+  /** The distance section. */
+  laps: 3.5,
+  moon: 6,
+  /** How tightly the drawing, footage and distance line follow the scroll, per second: lower is smoother and laggier. */
+  follow: 5,
   /** Camera damping, per second: lower is a slower, floatier move (camera-spec.md: 2.6). */
-  camera: 1.6,
+  camera: 2,
   /** How fast the camera turns into the direction of travel, per second. */
   yaw: 0.8,
   /** Highlight fades, per second (4 = about a second). */
   highlight: 2.5,
 } as const
 
-/** Seconds a chapter of `legs` legs plays for. */
-export function playFor(legs: number) {
-  const seconds = PACING.perLeg * legs * (1 + legs / PACING.slowAfter)
-  return Math.min(PACING.maxChapter, Math.max(PACING.minChapter, seconds))
+/** Screens of scroll a chapter runs over. */
+export function scrollOf(ch: Chapter) {
+  if (ch.jump) return PACING.jump
+  if (ch.scene) return PACING[ch.scene]
+  if (!ch.range || ch.hold) return PACING.hold
+  const legs = ch.range[1] - ch.range[0] + 1
+  const screens = PACING.base + PACING.perLeg * legs * (1 + legs / PACING.slowAfter)
+  return Math.min(PACING.maxScroll, Math.max(PACING.minScroll, screens))
 }

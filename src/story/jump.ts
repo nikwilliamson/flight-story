@@ -1,5 +1,5 @@
 /**
- * The jump chapter's clock (wireframe JUMP). Over the chapter's playback: 0–IN the footage fades in, IN–CABIN rides up
+ * The jump chapter's clock (wireframe JUMP). Over the chapter's scroll: 0–IN the footage fades in, IN–CABIN rides up
  * in the cabin, CABIN–DOOR the door opens and the sky light swells, then the layer fades and a line drops him onto
  * the drop zone.
  */
@@ -19,7 +19,7 @@ export const JUMP = {
   ROWS: 16,
 }
 
-/** Chapter playback, written by the scroll driver: 0 before the jump, 1 after it. */
+/** Chapter progress, written by the scroll driver: 0 before the jump, 1 after it. */
 export const jump = { progress: 0 }
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))

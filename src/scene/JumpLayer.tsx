@@ -79,7 +79,7 @@ const fragmentShader = /* glsl */ `
 `
 
 /**
- * The jump: Nik's onboard footage as a dot-screened layer over the globe, played in real time on the chapter clock.
+ * The jump: Nik's onboard footage as a dot-screened layer over the globe, scrubbed by the chapter's scroll.
  * It is atmosphere, not a player (Nik): you sense the cabin, the people and the light rather than watch them.
  */
 export function JumpLayer() {

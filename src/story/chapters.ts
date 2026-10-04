@@ -51,9 +51,9 @@ export interface Chapter extends CardContent {
   hold?: boolean
   /** Leg ids lit in white while the chapter is on. */
   highlight?: number[]
-  /** The skydive: the onboard footage plays behind the globe, in real time. */
+  /** The skydive: the onboard footage plays behind the globe, scrubbed by the scroll. */
   jump?: boolean
-  /** The distance section: one line laps the Earth, then unspools to the Moon and back, played on the chapter's clock. */
+  /** The distance section: one line laps the Earth, then unspools to the Moon and back, scrubbed by the scroll. */
   scene?: 'laps' | 'moon'
 }
 
