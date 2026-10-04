@@ -1,5 +1,5 @@
 /**
- * The jump chapter's clock (wireframe JUMP). Over the chapter's scroll: 0–IN the footage fades in, IN–CABIN rides up
+ * The jump chapter's clock (wireframe JUMP). Over the chapter's playback: 0–IN the footage fades in, IN–CABIN rides up
  * in the cabin, CABIN–DOOR the door opens and the sky light swells, then the layer fades and a line drops him onto
  * the drop zone.
  */
@@ -11,15 +11,15 @@ export const JUMP = {
   CABIN_T: 15.4,
   DURATION: 16.5,
   /** Layer opacity in the cabin, and at the open door. */
-  LOW: 0.16,
-  HIGH: 0.38,
+  LOW: 0.3,
+  HIGH: 0.55,
   /** public/jump-atlas.jpg: FRAMES frames sampled evenly over DURATION, COLS across (scripts/build_jump_atlas.sh). */
   FRAMES: 128,
   COLS: 8,
   ROWS: 16,
 }
 
-/** Eased chapter progress, written by the scroll driver: 0 before the jump, 1 after it. */
+/** Chapter playback, written by the scroll driver: 0 before the jump, 1 after it. */
 export const jump = { progress: 0 }
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))

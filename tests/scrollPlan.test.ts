@@ -1,49 +1,37 @@
 import { describe, expect, it } from 'vitest'
-import { activeAt, cardTop, planScroll, progressAt } from '../src/story/scrollPlan'
+import { activeAt, cardTop, planScroll } from '../src/story/scrollPlan'
 
 const H = 800
-const column = { top: 0, bottom: H, centre: true }
-const plan = planScroll(
-  [
-    { height: 300, travel: 1 },
-    { height: 500, travel: 1.5 },
-    { height: 1200, travel: 1 },
-  ],
-  H,
-  column,
-)
+const column = { top: 0, bottom: H, centre: true, line: H * 0.45 }
+const plan = planScroll([300, 500, 1200, 200], column)
 
 describe('scroll plan', () => {
-  it('locks the first card at load', () => {
-    expect(plan.segments[0].lock).toBe(0)
-    expect(cardTop(plan.segments[0], 0, H)).toBe(plan.segments[0].pin)
+  it('shows the first card at load, centred', () => {
+    expect(plan.segments[0].at).toBe(0)
+    expect(cardTop(plan.segments[0], 0)).toBe((H - 300) / 2)
   })
 
-  it('starts each new card off screen as the last one unlocks', () => {
-    for (let i = 1; i < plan.segments.length; i++) expect(cardTop(plan.segments[i], plan.segments[i - 1].unlock, H)).toBeGreaterThanOrEqual(H)
-  })
-
-  it('never overlaps two cards', () => {
-    for (let scroll = 0; scroll < plan.length; scroll += 7) {
-      for (let i = 1; i < plan.segments.length; i++) {
-        const prev = plan.segments[i - 1]
-        const cur = plan.segments[i]
-        expect(cardTop(cur, scroll, H)).toBeGreaterThanOrEqual(cardTop(prev, scroll, H) + prev.height - 0.01)
-      }
+  it('scrolls cards with the page, one to one, never overlapping', () => {
+    for (let i = 1; i < plan.segments.length; i++) {
+      const prev = plan.segments[i - 1]
+      const cur = plan.segments[i]
+      expect(cur.top).toBeGreaterThan(prev.top + prev.height)
+      expect(cardTop(cur, 100) - cardTop(cur, 0)).toBe(-100)
     }
   })
 
-  it('reveals the bottom of a card taller than the screen while it is locked', () => {
-    const tall = plan.segments[2]
-    expect(tall.overflow).toBeGreaterThan(0)
-    expect(cardTop(tall, tall.unlock, H) + tall.height).toBeLessThanOrEqual(H)
+  it('hands over as each card crosses the reading line', () => {
+    plan.segments.forEach((s, i) => {
+      if (i === 0) return
+      expect(cardTop(s, s.at)).toBeCloseTo(column.line)
+      expect(activeAt(plan, s.at)).toBe(i)
+      expect(activeAt(plan, s.at - 5)).toBe(i - 1)
+    })
   })
 
-  it('holds progress at 0 and 1 in the rest at each end', () => {
-    const s = plan.segments[1]
-    expect(progressAt(s, s.lock + 10, H)).toBe(0)
-    expect(progressAt(s, s.unlock - 10, H)).toBe(1)
-    expect(activeAt(plan, s.lock)).toBe(1)
-    expect(activeAt(plan, s.lock - 5)).toBe(0)
+  it('scrolls far enough for the last card to take over and show whole', () => {
+    const last = plan.segments.at(-1)!
+    expect(plan.length).toBeGreaterThanOrEqual(last.at)
+    expect(cardTop(last, plan.length) + last.height).toBeLessThanOrEqual(H)
   })
 })

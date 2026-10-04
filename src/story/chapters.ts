@@ -47,15 +47,15 @@ export interface Chapter extends CardContent {
   shot: Shot
   /** Leg ids (1-based, inclusive) that draw as the reader scrolls; omitted = the whole log, already drawn. */
   range?: [number, number]
-  /** Keep the legs drawn so far instead of scrubbing (asides that break chronology). */
+  /** Keep the legs drawn so far instead of drawing the range (asides that break chronology). */
   hold?: boolean
   /** Leg ids lit in white while the chapter is on. */
   highlight?: number[]
-  /** Scroll length while the card is locked, in screen heights. */
-  travel: number
-  /** The skydive: the onboard footage plays behind the globe, scrubbed by this chapter's scroll. */
+  /** How long the chapter plays once the camera is there, seconds; omitted = paced by its leg count (ScrollDriver). */
+  duration?: number
+  /** The skydive: the onboard footage plays behind the globe, in real time. */
   jump?: boolean
-  /** The distance section: one line laps the Earth, then unspools to the Moon and back, scrubbed by the scroll. */
+  /** The distance section: one line laps the Earth, then unspools to the Moon and back, played on the chapter's clock. */
   scene?: 'laps' | 'moon'
 }
 
@@ -174,7 +174,6 @@ export const CHAPTERS: Chapter[] = [
     body: `Sixty years of flying, logged by hand, one row per leg. Steve has gone round the Earth ${fmt(facts.laps)} times, or to the Moon and back ${fmt(facts.moonTrips, 1)} times. Scroll to fly them in order.`,
     modules: [{ kind: 'stats', label: 'Totals', items: [['Legs', fmt(facts.legs)], ['Miles', fmt(facts.miles)], ['Airports', fmt(facts.airports)], ['Countries', fmt(facts.countries)]] }],
     shot: SHOTS.opening,
-    travel: 0.6,
   },
   {
     id: 'first',
@@ -193,7 +192,6 @@ export const CHAPTERS: Chapter[] = [
     ],
     shot: SHOTS.first,
     range: RANGES.first,
-    travel: 1.2,
   },
   {
     id: 'summers',
@@ -204,7 +202,6 @@ export const CHAPTERS: Chapter[] = [
     modules: [chapterStats(RANGES.summers), topAirports(RANGES.summers, 4, 'Most visited this chapter')],
     shot: SHOTS.summers,
     range: RANGES.summers,
-    travel: 1.4,
   },
   {
     id: 'atlantic',
@@ -215,7 +212,6 @@ export const CHAPTERS: Chapter[] = [
     modules: [{ kind: 'chips', label: 'Home base', items: homes(RANGES.atlantic) }],
     shot: SHOTS.atlantic,
     range: RANGES.atlantic,
-    travel: 1.4,
   },
   {
     id: 'florida',
@@ -226,7 +222,6 @@ export const CHAPTERS: Chapter[] = [
     modules: [precision(RANGES.florida)],
     shot: SHOTS.florida,
     range: RANGES.florida,
-    travel: 1.8,
   },
   {
     id: 'tour',
@@ -242,7 +237,6 @@ export const CHAPTERS: Chapter[] = [
     shot: SHOTS.tour,
     range: RANGES.tour,
     highlight: [160, 161, 162, 163, 164],
-    travel: 2.2,
   },
   {
     id: 'osaka',
@@ -258,7 +252,6 @@ export const CHAPTERS: Chapter[] = [
     ],
     shot: SHOTS.osaka,
     range: RANGES.osaka,
-    travel: 2.2,
   },
   {
     id: 'hockey',
@@ -273,7 +266,6 @@ export const CHAPTERS: Chapter[] = [
     ],
     shot: SHOTS.hockey,
     range: RANGES.hockey,
-    travel: 2,
   },
   {
     id: 'longOnes',
@@ -295,7 +287,6 @@ export const CHAPTERS: Chapter[] = [
     shot: SHOTS.longOnes,
     range: RANGES.longOnes,
     highlight: facts.longest.slice(0, 5).map((l) => l.id),
-    travel: 2,
   },
   {
     id: 'hopper',
@@ -310,7 +301,6 @@ export const CHAPTERS: Chapter[] = [
     shot: SHOTS.hopper,
     range: RANGES.hopper,
     highlight: hopper.slice(0, 6),
-    travel: 1.6,
   },
   {
     id: 'peak',
@@ -321,7 +311,6 @@ export const CHAPTERS: Chapter[] = [
     modules: [chapterStats(RANGES.peak)],
     shot: SHOTS.peak,
     range: RANGES.peak,
-    travel: 2,
   },
   {
     id: 'joyrides',
@@ -335,21 +324,21 @@ export const CHAPTERS: Chapter[] = [
     range: RANGES.peak,
     hold: true,
     highlight: [75, 723, 836, 1003, 1385],
-    travel: 1.6,
   },
   {
     id: 'jump',
     label: 'Jump',
     eyebrow: '18 August 2018 · Titusville, Florida',
     title: 'The jump',
-    body: `Leg ${fmt(RANGES.jump[0])} starts and ends at the same airport, and Steve wasn't on board for the landing. He rode a Beech King Air up from the Skydive Space Center drop zone with a cabin full of jumpers, then went out the door.\n\nNik was on the plane with a camera. Scroll to ride up with them.`,
+    body: `Leg ${fmt(RANGES.jump[0])} starts and ends at the same airport, and Steve wasn't on board for the landing. He rode a Beech King Air up from the Skydive Space Center drop zone with a cabin full of jumpers, then went out the door.\n\nNik was on the plane with a camera.`,
     modules: [planes('The ride up', [RANGES.jump[0]])],
     shot: SHOTS.jump,
     range: RANGES.peak,
     hold: true,
     highlight: [RANGES.jump[0]],
+    // The footage runs in real time from the fade-in to the door (JUMP.IN–DOOR), then the drop.
+    duration: 19,
     jump: true,
-    travel: 3.2,
   },
   {
     id: 'airframes',
@@ -365,7 +354,6 @@ export const CHAPTERS: Chapter[] = [
     range: RANGES.peak,
     hold: true,
     highlight: AIRFRAMES,
-    travel: 1.8,
   },
   {
     id: 'later',
@@ -378,7 +366,6 @@ export const CHAPTERS: Chapter[] = [
     range: RANGES.peak,
     hold: true,
     highlight: LATER_LIVES,
-    travel: 1.8,
   },
   {
     id: 'stillGoing',
@@ -389,7 +376,6 @@ export const CHAPTERS: Chapter[] = [
     modules: [chapterStats([1317, legs.length])],
     shot: SHOTS.stillGoing,
     range: RANGES.stillGoing,
-    travel: 1.8,
   },
   {
     id: 'gone',
@@ -403,7 +389,6 @@ export const CHAPTERS: Chapter[] = [
     ],
     shot: SHOTS.gone,
     highlight: defunctIds,
-    travel: 1.4,
   },
   {
     id: 'laps',
@@ -416,8 +401,8 @@ export const CHAPTERS: Chapter[] = [
       { kind: 'fact', text: `Light would cover all of it in about ${fmt(facts.lightSeconds)} seconds.` },
     ],
     shot: SHOTS.laps,
+    duration: 14,
     scene: 'laps',
-    travel: 2.6,
   },
   {
     id: 'moon',
@@ -427,8 +412,8 @@ export const CHAPTERS: Chapter[] = [
     body: `Now unwind it. Keep the same line, pull back far enough to see the Moon at its real size and distance, and let the line peel off the Earth. Every lap that comes off becomes part of a figure 8 round the Moon, until it reaches the Moon and back ${fmt(facts.moonTrips, 1)} times.`,
     modules: [{ kind: 'fact', text: `That's still only ${fmt(facts.sunShare * 100)}% of the way to the Sun.` }],
     shot: SHOTS.moon,
+    duration: 26,
     scene: 'moon',
-    travel: 3.6,
   },
   {
     id: 'all',
@@ -438,6 +423,5 @@ export const CHAPTERS: Chapter[] = [
     body: `${fmt(facts.miles)} miles to ${fmt(facts.airports)} airports in ${fmt(facts.countries)} countries, on ${fmt(facts.airlines)} airlines and at least ${fmt(facts.planes)} different airplanes.`,
     modules: [topAirports([1, legs.length], 5, 'Most visited airports')],
     shot: SHOTS.all,
-    travel: 0.6,
   },
 ]

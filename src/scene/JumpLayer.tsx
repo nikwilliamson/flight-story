@@ -8,7 +8,7 @@ import { JUMP, jump, jumpPhase } from '../story/jump'
 import { scroll } from '../story/scrollState'
 
 /** Halftone cell, CSS px: coarse enough that faces never resolve, fine enough to read as the globe's particles. */
-const CELL_PX = 6
+const CELL_PX = 4.5
 /** Start fetching the atlas this many chapters ahead. */
 const PRELOAD = 2
 const JUMP_INDEX = CHAPTERS.findIndex((c) => c.jump)
@@ -77,7 +77,7 @@ const fragmentShader = /* glsl */ `
 `
 
 /**
- * The jump: Nik's onboard footage as a faint, dot-screened layer over the globe, scrubbed by the chapter's scroll.
+ * The jump: Nik's onboard footage as a dot-screened layer over the globe, played in real time on the chapter clock.
  * It is atmosphere, not a player (Nik): you sense the cabin, the people and the light rather than watch them.
  */
 export function JumpLayer() {

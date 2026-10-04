@@ -17,7 +17,7 @@ const SLIDE = 24
 export const tabBarBottom = (layout: Layout) => (layout.phone ? layout.stage.height - 8 : 24 + HEIGHT * layout.scale)
 
 /**
- * The tabs, which slide in once the story's last card locks: Explore, Trips, Airports, Planes, Airlines, Log. Desktop:
+ * The tabs, which slide in once the story's last card takes over: Explore, Trips, Airports, Planes, Airlines, Log. Desktop:
  * across the top of the card column. Phone: along the bottom of the pinned globe.
  */
 export function TabBar({ layout }: { layout: Layout }) {

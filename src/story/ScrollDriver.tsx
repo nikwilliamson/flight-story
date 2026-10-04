@@ -3,13 +3,13 @@ import { useFrame } from '@react-three/fiber'
 import { settledOn } from '../scene/camera/StoryCamera'
 import { useStory } from '../state/store'
 import { CHAPTERS, type Chapter } from './chapters'
-import { activeAt, bufferFor, progressAt } from './scrollPlan'
+import { activeAt } from './scrollPlan'
 import { scroll } from './scrollState'
 import { FLIGHT, STORY_END, timeline } from './timeline'
 import { jump } from './jump'
 import { distance } from './distance'
 
-/** Lines wait this long after the camera arrives before they catch up to the scroll (Nik, buffer rule). */
+/** Lines wait this long after the camera arrives before the chapter starts playing (Nik, buffer rule). */
 const LINE_DELAY_S = 0.35
 /** Above this many legs of catch-up outside the chapter's range, cut instead of animating. */
 const SNAP_LEGS = 250
@@ -20,6 +20,17 @@ const JUMP_INDEX = CHAPTERS.findIndex((c) => c.jump)
 const LAPS_INDEX = CHAPTERS.findIndex((c) => c.scene === 'laps')
 const MOON_INDEX = CHAPTERS.findIndex((c) => c.scene === 'moon')
 
+/**
+ * Seconds a chapter plays for. Big chapters get longer so a few hundred legs never read as skipped (Nik): roughly
+ * 40 ms a leg on top of a couple of seconds, capped so the reader isn't kept waiting.
+ */
+export function durationOf(ch: Chapter) {
+  if (ch.duration) return ch.duration
+  if (!ch.range || ch.hold) return 2
+  const legs = ch.range[1] - ch.range[0] + 1
+  return Math.min(14, Math.max(3, 2 + legs * 0.04))
+}
+
 /** Story time at chapter progress p: legs scrub from the first's takeoff to the last's landing. */
 function timeFor(ch: Chapter, p: number) {
   if (!ch.range) return STORY_END
@@ -29,15 +40,15 @@ function timeFor(ch: Chapter, p: number) {
 }
 
 /**
- * Runs the story off the page scroll (camera-spec.md). A chapter takes over the moment its card locks: the camera
- * retargets at once, and the lines hold at the chapter's start until the camera is visually there plus a beat,
- * then catch up to the scroll. Scrolling back up shows a chapter's end state straight away.
+ * Runs the story (camera-spec.md, minus the scrolljacking). The page scrolls freely; a chapter takes over when its
+ * card crosses the reading line. The camera retargets at once, and once it is visually there plus a beat the chapter
+ * plays on its own clock, however fast or slow the reader scrolls. Scrolling back up shows a chapter's end state.
  */
 export function ScrollDriver() {
-  const state = useRef({ active: -1, gateOpen: true, settledFor: 0, shown: STORY_END }).current
+  const state = useRef({ active: -1, gateOpen: true, settledFor: 0, elapsed: 0, shown: STORY_END, startAt: -1 }).current
 
-  // #ch=hockey scrolls to that chapter once the cards are laid out (screenshots, sharing a chapter); &p=0.5 stops
-  // part-way through it instead of at its end.
+  // #ch=hockey scrolls to that chapter once the cards are laid out (screenshots, sharing a chapter); &p=0.5 starts
+  // its playback half-way through instead of at its end.
   useEffect(() => {
     const params = new URLSearchParams(location.hash.slice(1))
     const id = params.get('ch')
@@ -48,8 +59,8 @@ export function ScrollDriver() {
       const seg = scroll.plan?.segments[index]
       if (!seg) return
       clearInterval(timer)
-      const travel = seg.unlock - seg.lock
-      window.scrollTo(0, seg.lock + bufferFor(travel, innerHeight) + (travel - 2 * bufferFor(travel, innerHeight)) * at)
+      state.startAt = at
+      window.scrollTo(0, seg.at + 1)
     }, 100)
     return () => clearInterval(timer)
   }, [])
@@ -61,11 +72,17 @@ export function ScrollDriver() {
     const y = window.scrollY
     const index = activeAt(plan, y)
     const ch = CHAPTERS[index]
-    const p = progressAt(plan.segments[index], y, innerHeight)
+    const duration = durationOf(ch)
 
     if (index !== state.active) {
-      state.gateOpen = index < state.active || reduceMotion()
+      const back = index < state.active
+      state.gateOpen = back || reduceMotion()
       state.settledFor = 0
+      state.elapsed = back || reduceMotion() ? duration : 0
+      if (state.startAt >= 0) {
+        state.elapsed = state.startAt * duration
+        state.startAt = -1
+      }
       state.active = index
       const store = useStory.getState()
       store.setShot(ch.shot)
@@ -75,8 +92,10 @@ export function ScrollDriver() {
 
     state.settledFor = settledOn(ch.shot) ? state.settledFor + dt : 0
     if (!state.gateOpen && (ch.shot.spin || state.settledFor > LINE_DELAY_S)) state.gateOpen = true
+    if (state.gateOpen) state.elapsed = Math.min(duration, state.elapsed + dt)
+    const p = state.elapsed / duration
 
-    const target = state.gateOpen ? timeFor(ch, p) : timeFor(ch, 0)
+    const target = timeFor(ch, p)
     const gap = target - state.shown
     const inChapter = ch.range && state.shown >= ch.range[0] - 1 && state.shown <= ch.range[1] + FLIGHT
     state.shown = (Math.abs(gap) > SNAP_LEGS && !inChapter) || reduceMotion() ? target : state.shown + gap * (1 - Math.exp(-dt * 6))
@@ -84,16 +103,11 @@ export function ScrollDriver() {
     timeline.time = state.shown
     timeline.focusFrom = ch.range && !ch.hold ? ch.range[0] - 1 : Infinity
     timeline.reveal = !!ch.hold
-    // The footage scrubs with a little lag so a flick of the wheel doesn't jump frames.
-    const jumpTarget = ch.jump ? p : index > JUMP_INDEX ? 1 : 0
-    jump.progress = !ch.jump || reduceMotion() ? jumpTarget : jump.progress + (jumpTarget - jump.progress) * (1 - Math.exp(-dt * 8))
-    // The distance line scrubs the same way: lapping in its first chapter, unspooling to the Moon in the second, and
-    // simply finished (or not yet started) anywhere else. Fade and the globe's routes follow the camera's clock.
-    const lapsTarget = ch.scene === 'laps' ? p : index > LAPS_INDEX ? 1 : 0
-    const moonTarget = ch.scene === 'moon' ? p : index > MOON_INDEX ? 1 : 0
-    const follow = 1 - Math.exp(-dt * 8)
-    distance.laps = ch.scene !== 'laps' || reduceMotion() ? lapsTarget : distance.laps + (lapsTarget - distance.laps) * follow
-    distance.moon = ch.scene !== 'moon' || reduceMotion() ? moonTarget : distance.moon + (moonTarget - distance.moon) * follow
+    // The footage plays in real time on the chapter's clock; the distance line laps in its first chapter, unspools to
+    // the Moon in the second, and is simply finished (or not yet started) anywhere else.
+    jump.progress = ch.jump ? p : index > JUMP_INDEX ? 1 : 0
+    distance.laps = ch.scene === 'laps' ? p : index > LAPS_INDEX ? 1 : 0
+    distance.moon = ch.scene === 'moon' ? p : index > MOON_INDEX ? 1 : 0
     scroll.active = index
     scroll.progress = p
   })

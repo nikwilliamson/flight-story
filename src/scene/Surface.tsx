@@ -165,6 +165,8 @@ const fragmentShader = /* glsl */ `
     color += uHaze * route * fog * 0.08;
     // The grid sits on the outer shell, so the fog only half-hides it.
     color += uGrid * g * 0.85 * (1.0 - land * 0.5) * (1.0 - fogAmount * 0.35);
+    // A faint emissive term on top (Nik: very slightly emissive), so the brightest cities glow through the haze.
+    color += uLightColor * pow(lights, 2.2) * 0.14 * (1.0 - fogAmount * 0.5);
 
     float fres = pow(1.0 - max(dot(vNormal, vView), 0.0), 2.5);
     color += uRim * fres * 0.15;
