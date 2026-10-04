@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { AdditiveBlending, LinearFilter, Mesh, PlaneGeometry, ShaderMaterial, TextureLoader, Vector2, Vector4, type Texture } from 'three'
+import { CustomBlending, LinearFilter, OneFactor, OneMinusSrcAlphaFactor, Mesh, PlaneGeometry, ShaderMaterial, TextureLoader, Vector2, Vector4, type Texture } from 'three'
 import { palette } from '../theme'
 import { useStory } from '../state/store'
 import { CHAPTERS } from '../story/chapters'
@@ -8,7 +8,7 @@ import { JUMP, jump, jumpPhase } from '../story/jump'
 import { scroll } from '../story/scrollState'
 
 /** Halftone cell, CSS px: coarse enough that faces never resolve, fine enough to read as the globe's particles. */
-const CELL_PX = 6
+const CELL_PX = 4.5
 /** Start fetching the atlas this many chapters ahead. */
 const PRELOAD = 2
 const JUMP_INDEX = CHAPTERS.findIndex((c) => c.jump)
@@ -71,13 +71,15 @@ const fragmentShader = /* glsl */ `
     color = mix(color, vec3(1.0), uDoor * luma * 0.7);
     // Feather the stage edges so the layer has no frame.
     vec2 edge = smoothstep(0.0, 0.12, vUv) * smoothstep(1.0, 0.88, vUv);
-    float a = dot * uOpacity * edge.x * edge.y;
-    gl_FragColor = vec4(color * a * (1.0 + uDoor * 1.5), a);
+    // Over, not added (Nik: it disappeared against the bright close-up): a dark veil sinks the globe behind the
+    // footage so the dots read, premultiplied so the dots themselves still glow.
+    float k = uOpacity * edge.x * edge.y;
+    gl_FragColor = vec4(color * dot * k * (1.0 + uDoor * 1.5), k * (0.55 + 0.45 * dot));
   }
 `
 
 /**
- * The jump: Nik's onboard footage as a faint, dot-screened layer over the globe, scrubbed by the chapter's scroll.
+ * The jump: Nik's onboard footage as a dot-screened layer over the globe, scrubbed by the chapter's scroll.
  * It is atmosphere, not a player (Nik): you sense the cabin, the people and the light rather than watch them.
  */
 export function JumpLayer() {
@@ -95,7 +97,9 @@ export function JumpLayer() {
         transparent: true,
         depthTest: false,
         depthWrite: false,
-        blending: AdditiveBlending,
+        blending: CustomBlending,
+        blendSrc: OneFactor,
+        blendDst: OneMinusSrcAlphaFactor,
         uniforms: {
           uAtlas: { value: null },
           uFrame: { value: 0 },

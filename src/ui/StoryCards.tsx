@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { Group } from 'three'
 import { CHAPTERS } from '../story/chapters'
+import { scrollOf } from '../story/pacing'
 import { cardTop, planScroll } from '../story/scrollPlan'
 import { scroll } from '../story/scrollState'
 import type { Layout } from './layout'
@@ -19,11 +20,13 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
     () => CHAPTERS.map((_, i) => (h: number) => setHeights((prev) => (prev[i] === h ? prev : Object.assign([...prev], { [i]: h })))),
     [],
   )
-  const column = layout.phone ? { top: layout.card.y, bottom: viewport - 16, centre: false } : { top: 0, bottom: viewport, centre: true }
+  // Phones pin cards in the strip under the pinned globe.
+  const top = layout.phone ? layout.card.y : 0
+  const column = { top, bottom: layout.phone ? viewport - 16 : viewport, centre: !layout.phone }
 
   const plan = useMemo(() => {
     if (CHAPTERS.some((_, i) => heights[i] === undefined)) return null
-    return planScroll(CHAPTERS.map((c, i) => ({ height: heights[i]!, travel: c.travel })), viewport, column)
+    return planScroll(CHAPTERS.map((ch, i) => ({ height: heights[i]!, scroll: scrollOf(ch) * viewport })), column)
     // column is derived from layout and viewport
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heights, viewport, layout])
@@ -37,22 +40,21 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
   useFrame(() => {
     if (!plan) return
     const y = window.scrollY
-    // Once a tab is open, its panel takes the closing card's place.
+    // Once a tab is open, its panel takes the cards' place.
     const tabOpen = useStory.getState().tab !== null
-    const last = plan.segments.length - 1
     plan.segments.forEach((seg, i) => {
       const g = groups.current[i]
       if (!g) return
-      const top = cardTop(seg, y, viewport)
+      const top = cardTop(seg, y)
       g.position.set(layout.card.x, -top, 0)
-      g.visible = top < viewport && top + seg.height > 0 && !(tabOpen && i === last)
+      g.visible = top < viewport && top + seg.height > 0 && !tabOpen
     })
   })
 
   return (
     <>
       {CHAPTERS.map((chapter, i) => (
-        <StoryCard key={chapter.id} ref={(g) => void (groups.current[i] = g)} chapter={chapter} width={layout.card.width} s={layout.scale} opening={i === 0} onHeight={onHeight[i]} />
+        <StoryCard key={chapter.id} ref={(g) => void (groups.current[i] = g)} chapter={chapter} width={layout.card.width} s={layout.scale} bare={layout.phone} opening={i === 0} onHeight={onHeight[i]} />
       ))}
     </>
   )

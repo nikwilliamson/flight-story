@@ -8,7 +8,9 @@ export const palette = {
   shelf: new Color('#0b1d3a'),
   outline: new Color('#8cc4ff'),
   relief: new Color('#3d6fb8'),
-  lights: new Color('#a9ccff'),
+  /** Warm sodium-white city lights (Nik: warmer). */
+  lights: new Color('#ffe9cf'),
+  airport: new Color('#f4f8ff'),
   domestic: new Color('#4cc9ff'),
   international: new Color('#ffb54a'),
   home: new Color('#ffb54a'),

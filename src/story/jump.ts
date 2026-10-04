@@ -11,15 +11,15 @@ export const JUMP = {
   CABIN_T: 15.4,
   DURATION: 16.5,
   /** Layer opacity in the cabin, and at the open door. */
-  LOW: 0.16,
-  HIGH: 0.38,
+  LOW: 0.45,
+  HIGH: 0.7,
   /** public/jump-atlas.jpg: FRAMES frames sampled evenly over DURATION, COLS across (scripts/build_jump_atlas.sh). */
   FRAMES: 128,
   COLS: 8,
   ROWS: 16,
 }
 
-/** Eased chapter progress, written by the scroll driver: 0 before the jump, 1 after it. */
+/** Chapter progress, written by the scroll driver: 0 before the jump, 1 after it. */
 export const jump = { progress: 0 }
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))

@@ -47,6 +47,7 @@ const fragmentShader = /* glsl */ `
   uniform vec3 uSun;
   uniform float uIntensity;
   uniform float uExposure;
+  uniform float uThin;
   varying vec3 vWorld;
 
   vec2 sphere(vec3 ro, vec3 rd, float r) {
@@ -140,7 +141,9 @@ const fragmentShader = /* glsl */ `
     color += dither(gl_FragCoord.xy) / 255.0;
     // Premultiplied: what lies behind (the dotted globe, the stars) is dimmed by the air in front of it.
     vec3 transmittance = exp(-extinction(view));
-    gl_FragColor = vec4(max(color, 0.0), 1.0 - dot(transmittance, vec3(1.0 / 3.0)));
+    // Close in, the camera looks across the air at grazing angles and the five-times-thick shell turns the whole
+    // view gray (Nik: washed out). uThin thins it there, keeping the limb glow from afar.
+    gl_FragColor = vec4(max(color, 0.0), 1.0 - dot(transmittance, vec3(1.0 / 3.0))) * uThin;
   }
 `
 
@@ -172,13 +175,19 @@ export function Scattering() {
           uGround: { value: TERRAIN.base },
           uTop: { value: SCATTER_TOP },
           uSun: { value: new Vector3() },
-          uIntensity: { value: 3.2 },
+          uIntensity: { value: 2.6 },
           uExposure: { value: 1.0 },
+          uThin: { value: 1 },
         },
       }),
     [],
   )
-  useFrame(({ camera }) => sunDirection(camera, material.uniforms.uSun.value))
+  useFrame(({ camera }) => {
+    sunDirection(camera, material.uniforms.uSun.value)
+    // 1 from the opening view out, down to a quarter near the ground.
+    const close = Math.min(1, Math.max(0, (3 - camera.position.length()) / 1.6))
+    material.uniforms.uThin.value = 1 - 0.75 * close * close * (3 - 2 * close)
+  })
   // After the surface and its outlines, before the arcs and airports, so the story marks stay crisp over the haze.
   return (
     <mesh material={material} renderOrder={2.5}>

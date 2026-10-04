@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import type { PerspectiveCamera } from 'three'
+import { PerspectiveCamera, Vector3 } from 'three'
+import { airports, legs } from '../../data'
 import { latLonToVec3 } from '../../geo'
+import { PACING } from '../../story/pacing'
+import { STORY_END, timeline } from '../../story/timeline'
 import { useStory, type Shot } from '../../state/store'
 
-/** Damping rate from camera-spec.md: lon, lat and log-zoom each close this share of the gap per second. */
-const RATE = 2.6
 const SPIN_DEG_PER_S = 4
 const MIN_ZOOM = 0.6
 const MAX_ZOOM = 20
@@ -17,18 +18,41 @@ const MIN_ALTITUDE = 0.02
 /** Height of the highest arc above the unit sphere (Arcs lift: 0.03 + 0.2 for a half-world leg). */
 const ARC_CEILING = 0.25
 
+/** Distance where the horizon tilt starts, and how far (radians) the view pitches near the ground (globe v48). */
+const TILT_FROM = 3.4
+const TILT_NEAR = 1.45
+const MAX_TILT = 0.85
+/** Most the view turns into the direction of travel (v48 MAX_YAW); a due-east or due-west flight gets all of it. */
+const MAX_YAW = 0.7
+/** Fitted points stay within 1 / FIT_MARGIN of the stage's half-size (v48). */
+const FIT_MARGIN = 1.2
+/** The globe's slow idle turn (v48 OrbitControls autoRotateSpeed 0.18: about 1.1° a second), eased with zoom. */
+const DRIFT_DEG_PER_S = 1.1
+
+/** How far the view pitches toward the horizon at eye distance d: none far out, MAX_TILT close in. */
+export function tiltAt(d: number) {
+  const k = Math.min(1, Math.max(0, (TILT_FROM - d) / (TILT_FROM - TILT_NEAR)))
+  return MAX_TILT * k * k * (3 - 2 * k)
+}
+
 /** Shortest signed difference between two longitudes, so the camera always goes the short way round. */
 export const wrap = (d: number) => ((((d + 540) % 360) + 360) % 360) - 180
 
 /** Where the camera is right now (it lags the shot). Read by anything that waits for the camera to arrive. */
-export const camera = { lon: -40, lat: 28, zoom: 1 }
+export const camera = { lon: -40, lat: 28, zoom: 1, yaw: 0 }
+/** Where the camera is headed: the current shot, with its zoom fitted to its legs. */
+const goal = { shot: null as Shot | null, lon: 0, lat: 0, zoom: 1 }
+/** Degrees of idle turn on top of camera.lon; folded into it whenever the shot changes, so nothing jumps. */
+const drift = { lon: 0 }
 
 /** The globe's camera, for screen-space layers (their own scenes have their own cameras) to project with. */
 export const view: { camera: PerspectiveCamera | null } = { camera: null }
 
-/** True once the camera is visually at the shot: within 2° and 6% zoom (camera-spec.md). */
-export const settledOn = (shot: Shot) =>
-  Math.abs(wrap(shot.lon - camera.lon)) < 2 && Math.abs(shot.lat - camera.lat) < 2 && Math.abs(Math.log(camera.zoom / shot.zoom)) < 0.06
+/** True once the camera is visually at the shot: within 2° and 6% zoom (camera-spec.md), after any fitting. */
+export const settledOn = (shot: Shot) => {
+  const g = goal.shot === shot ? goal : shot
+  return Math.abs(wrap(g.lon - camera.lon)) < 2 && Math.abs(g.lat - camera.lat) < 2 && Math.abs(Math.log(camera.zoom / g.zoom)) < 0.06
+}
 
 const reduceMotion = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -42,7 +66,7 @@ export function StoryCamera() {
   const gl = useThree((s) => s.gl)
   const size = useThree((s) => s.size)
   // Mutable across renders: a resize re-renders this component but must not reset the move in progress.
-  const state = useRef({ target: { ...useStory.getState().shot }, shot: useStory.getState().shot, userTookOver: false }).current
+  const state = useRef({ target: { ...useStory.getState().shot }, shot: useStory.getState().shot, userTookOver: false, dragging: false, yaw: 0, yawGoal: 0, yawHeld: 0 }).current
   const { target } = state
   useEffect(() => {
     view.camera = cam
@@ -60,6 +84,7 @@ export function StoryCamera() {
       el.setPointerCapture(e.pointerId)
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       state.userTookOver = true
+      state.dragging = true
     }
     const move = (e: PointerEvent) => {
       const prev = pointers.get(e.pointerId)
@@ -79,6 +104,7 @@ export function StoryCamera() {
     const up = (e: PointerEvent) => {
       pointers.delete(e.pointerId)
       pinch = 0
+      state.dragging = pointers.size > 0
     }
     const wheel = (e: WheelEvent) => {
       // A plain wheel always scrolls the story; a trackpad pinch (ctrl + wheel) zooms the released globe.
@@ -107,18 +133,41 @@ export function StoryCamera() {
     if (next !== state.shot) {
       // A new shot retargets and hands the camera back from any drag.
       state.shot = next
-      Object.assign(target, next)
       state.userTookOver = false
+      const yaw = next.fit?.length ? yawAlong(longest(next.fit), latLonToVec3(next.lat, next.lon)) : 0
+      const zoom = next.fit?.length ? fitZoom(next, yaw, cam, size.width, size.height, useStory.getState().stage) : next.zoom
+      // Debounced (Nik): a shot that barely differs from where the camera is already headed doesn't move it at all.
+      const small = Math.abs(wrap(next.lon - target.lon)) < PACING.minMoveDeg && Math.abs(next.lat - target.lat) < PACING.minMoveDeg && Math.abs(Math.log(zoom / target.zoom)) < PACING.minZoom
+      if (!small) {
+        Object.assign(target, next, { zoom })
+        camera.lon += drift.lon
+        drift.lon = 0
+        state.yaw = yaw
+      }
+      target.spin = next.spin
+      Object.assign(goal, { shot: next, lon: target.lon, lat: target.lat, zoom: target.zoom })
     } else if (state.shot.spin && !state.userTookOver) {
       target.lon += (dt * SPIN_DEG_PER_S) / Math.max(1, camera.zoom)
     }
 
-    const s = reduceMotion() ? 1 : 1 - Math.exp(-dt * RATE)
+    // Into the direction of travel (v48): the fitted legs' heading, or while a chapter plays, the leg in the air.
+    const flying = !state.shot.fit?.length && Number.isFinite(timeline.focusFrom) && !timeline.reveal && timeline.time < STORY_END
+    const wanted = state.userTookOver ? 0 : flying ? yawAlong(Math.min(legs.length - 1, Math.floor(timeline.time)), latLonToVec3(camera.lat, camera.lon)) : state.yaw
+    // Debounced: the heading only changes once a new one is clearly different and has held for a beat, so a run of
+    // short hops doesn't wobble the view.
+    if (Math.abs(wanted - state.yawGoal) < PACING.minYaw) state.yawHeld = 0
+    else if ((state.yawHeld += dt) > PACING.yawHold || !flying) [state.yawGoal, state.yawHeld] = [wanted, 0]
+    const yawTarget = state.yawGoal
+    camera.yaw += (yawTarget - camera.yaw) * (reduceMotion() ? 1 : 1 - Math.exp(-dt * PACING.yaw))
+
+    const s = reduceMotion() ? 1 : 1 - Math.exp(-dt * PACING.camera)
     camera.lon += wrap(target.lon - camera.lon) * s
     camera.lat += (target.lat - camera.lat) * s
     camera.zoom = Math.exp(Math.log(camera.zoom) + (Math.log(target.zoom) - Math.log(camera.zoom)) * s)
+    // The globe never sits dead still (v48): a slow turn that eases off as the camera closes in, so close-ups barely move.
+    if (!state.shot.spin && !state.dragging && !reduceMotion()) drift.lon += (dt * DRIFT_DEG_PER_S) / Math.max(1, camera.zoom * camera.zoom)
 
-    frame(cam, size.width, size.height, useStory.getState().stage)
+    frame(cam, size.width, size.height, useStory.getState().stage, { lon: camera.lon + drift.lon, lat: camera.lat, zoom: camera.zoom, yaw: camera.yaw })
   })
   return null
 }
@@ -137,18 +186,107 @@ const clampZoom = (z: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z))
  * Places the camera so the globe's silhouette has radius RADIUS_SHARE × zoom × the stage's shorter side, centred
  * in the stage. The stage is applied with setViewOffset, so the damping model never knows about layout.
  */
-function frame(cam: PerspectiveCamera, width: number, height: number, stage: { x: number; y: number; width: number; height: number } | null) {
+const aim = new Vector3()
+const north = new Vector3()
+const side = new Vector3()
+const forward = new Vector3()
+
+interface Pose {
+  lon: number
+  lat: number
+  zoom: number
+  /** Radians the view turns from north-up; positive brings a westward heading up the screen. */
+  yaw: number
+}
+type Frame = { x: number; y: number; width: number; height: number }
+
+function frame(cam: PerspectiveCamera, width: number, height: number, stage: Frame | null, pose: Pose) {
   const s = stage ?? { x: 0, y: 0, width, height }
-  const distance = distanceForZoom(camera.zoom, cam.fov, height, s)
-  latLonToVec3(camera.lat, camera.lon, distance, cam.position)
+  const distance = distanceForZoom(pose.zoom, cam.fov, height, s)
+  // Pitched toward the horizon as it closes in and turned by the yaw (v48 poseFor): the eye swings back from over the
+  // aim point, keeping its height, and looks at the ground there, so close-ups read as flying over the Earth.
+  const tilt = tiltAt(distance)
+  latLonToVec3(pose.lat, pose.lon, 1, aim)
+  north.set(0, 1, 0).addScaledVector(aim, -aim.y).normalize()
+  side.crossVectors(aim, north)
+  forward.copy(north).multiplyScalar(Math.cos(pose.yaw)).addScaledVector(side, Math.sin(pose.yaw))
+  cam.position.copy(aim).multiplyScalar(Math.cos(tilt)).addScaledVector(forward, -Math.sin(tilt)).multiplyScalar(distance - 1).add(aim)
   // Nothing sits higher than the tallest arc, so the near plane can ride just under it: close-ups (the jump, at
   // zoom 16) keep depth precision without a logarithmic depth buffer.
-  cam.near = Math.max(0.002, (distance - 1 - ARC_CEILING) * 0.8)
-  cam.up.set(0, 1, 0)
-  cam.lookAt(0, 0, 0)
+  cam.near = Math.max(0.002, (distance - 1 - ARC_CEILING) * 0.8 * Math.cos(tilt))
+  cam.up.copy(forward)
+  cam.lookAt(aim)
   const offsetX = width / 2 - (s.x + s.width / 2)
   const offsetY = height / 2 - (s.y + s.height / 2)
   // Both of these update the projection matrix, which the near plane change also needs.
   if (offsetX || offsetY) cam.setViewOffset(width, height, offsetX, offsetY, width, height)
   else cam.clearViewOffset()
+}
+
+const ends = (i: number) => [legs[i].from, legs[i].to].filter((a) => a >= 0).map((a) => latLonToVec3(airports[a].lat, airports[a].lon))
+
+/** The longest leg in a set: its heading reads as the set's direction of travel. */
+function longest(set: readonly number[]) {
+  let best = set[0]
+  let span = -1
+  for (const i of set) {
+    const [a, b] = ends(i)
+    const d = a && b ? a.angleTo(b) : 0
+    if (d > span) [best, span] = [i, d]
+  }
+  return best
+}
+
+const heading = new Vector3()
+
+/** The yaw that turns leg i's heading toward screen-up at centre n (v48 yawFor): the flight travels into the frame. */
+function yawAlong(i: number, n: Vector3) {
+  const [a, b] = ends(i)
+  if (!a || !b || a.angleTo(b) < 0.005) return 0
+  heading.copy(b).sub(a)
+  heading.addScaledVector(n, -heading.dot(n))
+  if (heading.lengthSq() < 1e-12) return 0
+  north.set(0, 1, 0).addScaledVector(n, -n.y).normalize()
+  side.crossVectors(n, north)
+  return MAX_YAW * heading.normalize().dot(side)
+}
+
+const probe = new PerspectiveCamera()
+const point = new Vector3()
+const toPoint = new Vector3()
+
+/**
+ * The closest zoom, up to the shot's own, at which both ends of every fitted leg land inside the stage once the
+ * camera is tilted and turned as it will be, and face the camera. Bisection: fitting only gets easier further out.
+ */
+function fitZoom(shot: Shot, yaw: number, cam: PerspectiveCamera, width: number, height: number, stage: Frame | null) {
+  const s = stage ?? { x: 0, y: 0, width, height }
+  const points = shot.fit!.flatMap(ends)
+  probe.fov = cam.fov
+  probe.aspect = cam.aspect
+  const fits = (zoom: number) => {
+    frame(probe, width, height, stage, { lon: shot.lon, lat: shot.lat, zoom, yaw })
+    probe.updateMatrixWorld()
+    return points.every((p) => {
+      // Over the horizon: the ground there faces away from the eye.
+      if (p.dot(toPoint.copy(probe.position).sub(p)) <= 0) return false
+      point.copy(p).project(probe)
+      const x = ((point.x + 1) / 2) * width
+      const y = ((1 - point.y) / 2) * height
+      const cx = s.x + s.width / 2
+      const cy = s.y + s.height / 2
+      return Math.abs(x - cx) * FIT_MARGIN <= s.width / 2 && Math.abs(y - cy) * FIT_MARGIN <= s.height / 2
+    })
+  }
+  if (fits(shot.zoom)) return shot.zoom
+  let lo = MIN_ZOOM
+  let hi = shot.zoom
+  // Spread round the globe, nothing fits: keep the authored framing rather than backing off for nothing.
+  if (!fits(lo)) return shot.zoom
+  for (let k = 0; k < 18; k++) {
+    const mid = Math.sqrt(lo * hi)
+    if (fits(mid)) lo = mid
+    else hi = mid
+  }
+  return lo
 }

@@ -26,5 +26,5 @@ export function TabPanel({ layout }: { layout: Layout }) {
   })
 
   if (!content) return null
-  return <StoryCard key={tab} ref={ref} chapter={content} width={layout.card.width} s={layout.scale} onHeight={noop} />
+  return <StoryCard key={tab} ref={ref} chapter={content} width={layout.card.width} s={layout.scale} bare={layout.phone} onHeight={noop} />
 }

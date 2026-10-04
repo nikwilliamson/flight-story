@@ -1,12 +1,12 @@
 import { DataTexture, NearestFilter, RedFormat, UnsignedByteType } from 'three'
 import { legs } from '../data'
 import { useStory } from '../state/store'
+import { PACING } from '../story/pacing'
 
-/** Highlight changes fade over about a second, never snap (Nik). Exponential, so 98% there at 1 s. */
-const RATE = 4
+/** Highlight changes fade, never snap (Nik); the rate is in pacing.ts. */
 const WIDTH = 256
 /** How far unlit legs dim while anything is lit (wireframe uDim). */
-export const DIM = 0.72
+export const DIM = 0.6
 
 const height = Math.ceil(legs.length / WIDTH)
 const pixels = new Uint8Array(WIDTH * height)
@@ -30,6 +30,8 @@ export const highlight = {
 /** How lit leg index i is right now, 0–1 (eased). */
 export const litAmount = (i: number) => current[i] ?? 0
 
+const hasArc = (i: number) => !!legs[i] && legs[i].from !== legs[i].to
+
 let applied: readonly number[] | null = null
 let settling = false
 
@@ -42,9 +44,11 @@ export function stepHighlight(dt: number) {
     applied = set
     settling = true
   }
-  const dimTarget = set.length ? 1 : 0
+  // Only dim the field when something lit has a line of its own to stand out: same-field legs (joyrides, the
+  // skydive) light as rings, and dimming every route around them just leaves an empty globe (Nik).
+  const dimTarget = set.some(hasArc) ? 1 : 0
   if (!settling && highlight.dim === dimTarget) return
-  const s = 1 - Math.exp(-dt * RATE)
+  const s = 1 - Math.exp(-dt * PACING.highlight)
   let moving = false
   for (let i = 0; i < current.length; i++) {
     const gap = target[i] - current[i]

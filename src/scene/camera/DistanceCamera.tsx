@@ -7,15 +7,13 @@ import { CHAPTERS } from '../../story/chapters'
 import { distance, LAP_FRAME, MOON_DISTANCE, MOON_POSITION, ORIGIN } from '../../story/distance'
 import { scroll } from '../../story/scrollState'
 import { RETURN_PROGRESS } from '../DistanceTracks'
+import { PACING } from '../../story/pacing'
 import { distanceForZoom } from './StoryCamera'
 
 /** Radians a second the camera keeps turning, so the shot is never static (globe v45). */
 const DRIFT_SPEED = 0.05
 const WORLD_UP = new Vector3(0, 1, 0)
 const ROLL_LIMIT = 0.6
-/** Seconds the swing round to the Earth–Moon line takes, and the pull back to true scale (globe v46). */
-const SWING_TIME = 2.5
-const ZOOM_TIME = 6
 /** Camera damping rate, per second (camera-spec.md). */
 const DAMPING = 2.6
 /** Seconds the globe's own routes take to fade out once the line starts lapping. */
@@ -108,13 +106,13 @@ export function DistanceCamera() {
     const far = (MOON_DISTANCE * 0.5 * 1.35) / tanHalf
 
     rig.dir.copy(rig.lapsDir).applyAxisAngle(WORLD_UP, -rig.lapsTime * DRIFT_SPEED)
-    rig.dir.lerp(rig.wideDir, smooth(rig.moonTime / SWING_TIME)).normalize()
+    rig.dir.lerp(rig.wideDir, smooth(rig.moonTime / PACING.moonSwing)).normalize()
     // The roll eases toward ROLL_LIMIT so the eight never turns edge-on.
-    const roll = Math.max(0, rig.moonTime - SWING_TIME) * DRIFT_SPEED
+    const roll = Math.max(0, rig.moonTime - PACING.moonSwing) * DRIFT_SPEED
     rig.dir.applyAxisAngle(rig.moonAxis, ROLL_LIMIT * (1 - Math.exp(-roll / ROLL_LIMIT)))
     // Distance moves in log space so the zoom feels even, and the aim slides only as fast as the view widens, so the
     // Earth never leaves the frame.
-    let dist = near * Math.pow(far / near, easeOut(rig.moonTime / ZOOM_TIME))
+    let dist = near * Math.pow(far / near, easeOut(rig.moonTime / PACING.moonZoom))
     rig.target.copy(rig.wideTarget).multiplyScalar((dist - near) / (far - near))
     if (back > 0) {
       const wide = dist

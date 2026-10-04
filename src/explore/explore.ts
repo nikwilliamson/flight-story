@@ -26,7 +26,7 @@ export function tabOf(id: string): TabId {
   return 'explore'
 }
 
-/** The tabs are on once the story's last card has locked. */
+/** The tabs are on once the story's last card has taken over. */
 export const atEnd = () => scroll.active === CHAPTERS.length - 1
 
 const MIN_ZOOM = 1
@@ -51,6 +51,7 @@ export function shotFor(set: readonly number[]): Shot | null {
     lat: (Math.asin(centre.y) * 180) / Math.PI,
     lon: (Math.atan2(centre.x, centre.z) * 180) / Math.PI,
     zoom,
+    fit: set,
   }
 }
 
