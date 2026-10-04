@@ -47,7 +47,7 @@ TYPE_WORDS = {
 
 
 def api(**params) -> dict:
-    params |= {"format": "json", "formatversion": "2"}
+    params |= {"action": "query", "format": "json", "formatversion": "2"}
     for attempt in range(5):
         try:
             req = urllib.request.Request(f"{API}?{urllib.parse.urlencode(params)}", headers={"User-Agent": UA})
@@ -180,7 +180,10 @@ def main() -> None:
         reason = "no aircraft type in the flight log" if not t["families"] else ""
         if not reason:
             for reg in t["regs"]:
-                page, reason = pick(reg, t["families"], t["airlines"], year)
+                try:
+                    page, reason = pick(reg, t["families"], t["airlines"], year)
+                except RuntimeError as e:
+                    page, reason = None, str(e)
                 if page:
                     try:
                         photos[key] = save(t["regs"][0], page) | {"registration": reg}
