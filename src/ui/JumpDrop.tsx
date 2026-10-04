@@ -5,6 +5,8 @@ import { airports } from '../data'
 import { latLonToVec3 } from '../geo'
 import { view } from '../scene/camera/StoryCamera'
 import { jump, jumpPhase } from '../story/jump'
+import { CHAPTERS } from '../story/chapters'
+import { scroll } from '../story/scrollState'
 
 /** How far above the drop zone the line starts, CSS px (wireframe: 90). */
 const FALL_PX = 90
@@ -34,7 +36,8 @@ export function JumpDrop() {
     const g = group.current
     if (!g) return
     const { drop } = jumpPhase(jump.progress)
-    g.visible = drop > 0 && !!zoneAt && !!view.camera
+    // Only during the jump: past it the clock rests at its end, drop included.
+    g.visible = !!CHAPTERS[scroll.active]?.jump && drop > 0 && !!zoneAt && !!view.camera
     if (!g.visible) return
     p.copy(zoneAt!).project(view.camera!)
     const x = ((p.x + 1) / 2) * width

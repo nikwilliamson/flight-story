@@ -26,11 +26,16 @@ export function TabBar({ layout }: { layout: Layout }) {
   const shown = useRef(0)
   const tab = useStory((st) => st.tab)
   const [over, setOver] = useState<string | null>(null)
-  const size = 13 * s
-  const pad = 13 * s
+  const room = layout.phone ? layout.stage.width - 16 : layout.card.width
+  // Shrink to fit the row (phones): text, padding and gaps scale together.
+  const natural = TABS.reduce((sum, t) => sum + bodyWidth(t.label, 13 * s) + 26 * s, 0) + SPACING * s * (TABS.length - 1)
+  const k = Math.min(1, room / natural)
+  const size = 13 * s * k
+  const pad = 13 * s * k
+  const gap = SPACING * s * k
   const h = HEIGHT * s
   const widths = TABS.map((t) => bodyWidth(t.label, size) + 2 * pad)
-  const total = widths.reduce((a, b) => a + b, 0) + SPACING * s * (TABS.length - 1)
+  const total = widths.reduce((a, b) => a + b, 0) + gap * (TABS.length - 1)
   const x0 = layout.phone ? Math.max(8, (layout.stage.width - total) / 2) : layout.card.x
   const y0 = layout.phone ? layout.stage.height - h - 8 * s : 24
 
@@ -50,7 +55,7 @@ export function TabBar({ layout }: { layout: Layout }) {
       {TABS.map((t, i) => {
         const w = widths[i]
         const cx = x
-        x += w + SPACING * s
+        x += w + gap
         const active = tab === t.id
         const lit = active || over === t.id
         return (

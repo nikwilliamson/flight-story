@@ -20,7 +20,8 @@ export function TabPanel({ layout }: { layout: Layout }) {
   useFrame(() => {
     const g = ref.current
     if (!g) return
-    g.visible = atEnd()
+    // A "Show all" sheet covers the panel; hide it so it never shows through the glass.
+    g.visible = atEnd() && !useStory.getState().sheet
     g.position.set(layout.card.x, -y, 0)
   })
 
