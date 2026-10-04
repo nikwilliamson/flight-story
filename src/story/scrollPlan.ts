@@ -1,17 +1,21 @@
 /**
  * Where every story card sits for any scroll position, in CSS px. Pure, so it can be tested without a browser.
  *
- * No scrolljacking (Nik): the cards are an ordinary column that scrolls with the page. A chapter takes over when its
- * card's top crosses the reading line, and the scroll from there to the next card's takeover runs it from start to
- * finish (the wireframe's original scroll-scrubbing). A chapter's scroll length is the room it needs to draw its
- * legs, so the empty space under a big chapter's card is where its lines draw.
+ * The scroll scrubs the story (the wireframe's original way), and each card pins while its globe events run (Nik):
+ * a card scrolls up to its pinned spot, holds there for its chapter's scroll length while the scroll draws its legs,
+ * then scrolls away as the next card comes up. A card taller than the column creeps up while pinned so all of it
+ * gets read.
  */
 export interface Segment {
-  /** Page y of the card's top. */
-  top: number
+  /** Viewport y of the card's top while pinned (before any creep). */
+  pinned: number
   height: number
-  /** Scroll position at which the card's top reaches the reading line and its chapter takes over. */
+  /** How far a tall card creeps up over the pin so its bottom shows. */
+  overflow: number
+  /** Scroll position at which the card pins and its chapter takes over. */
   at: number
+  /** Scroll position at which it unpins: its chapter has finished. */
+  until: number
 }
 
 export interface Plan {
@@ -20,52 +24,55 @@ export interface Plan {
   length: number
 }
 
-/** Least room between one card's bottom and the next card's top. */
-const MIN_GAP = 120
-const MARGIN = 24
-
 export interface Card {
   height: number
-  /** Scroll the chapter runs over, px. */
+  /** Scroll the chapter runs over while its card is pinned, px. */
   scroll: number
 }
 
+/** Room between one card leaving and the next arriving. */
+const GAP = 96
+const MARGIN = 24
+
 /**
- * `top` / `bottom` = the card column's span on screen; `centre` = start the first card centred in it (desktop);
- * `line` = the reading line, the viewport y a card's top crosses to take over.
+ * `top` / `bottom` = the card column's span on screen; `centre` = pin cards centred in it (desktop) rather than at
+ * its top (phones, just under the globe).
  */
-export function planScroll(cards: Card[], column: { top: number; bottom: number; centre: boolean; line: number }): Plan {
+export function planScroll(cards: Card[], column: { top: number; bottom: number; centre: boolean }): Plan {
   const room = column.bottom - column.top
   const segments: Segment[] = []
-  cards.forEach(({ height }, i) => {
+  cards.forEach(({ height, scroll }, i) => {
+    const fits = height + 2 * MARGIN <= room
+    const pinned = column.top + (fits && column.centre ? (room - height) / 2 : MARGIN)
+    const overflow = fits ? 0 : height + 2 * MARGIN - room
     const prev = segments[i - 1]
-    const top = prev
-      ? prev.top + Math.max(prev.height + MIN_GAP, cards[i - 1].scroll)
-      : column.top + (column.centre ? Math.max(MARGIN, (room - height) / 2) : MARGIN)
-    segments.push({ top, height, at: i === 0 ? 0 : top - column.line })
+    // The next card arrives from just below the previous one's last pinned position, a gap behind it.
+    const at = prev ? prev.until + Math.max(GAP, prev.pinned - prev.overflow + prev.height + GAP - pinned) : 0
+    segments.push({ pinned, height, overflow, at, until: at + Math.max(scroll, overflow) })
   })
   const last = segments.at(-1)
-  // Far enough for the last card to take over and sit wholly on screen.
-  const length = last ? Math.max(last.at, last.top + last.height + MARGIN - column.bottom) : 0
-  return { segments, length }
+  return { segments, length: last ? last.at : 0 }
+}
+
+/** How far through chapter i's pin the scroll is, 0–1. The last chapter is always done. */
+export function progressAt(plan: Plan, i: number, scroll: number) {
+  const seg = plan.segments[i]
+  if (!seg || i === plan.segments.length - 1) return 1
+  return Math.min(1, Math.max(0, (scroll - seg.at) / Math.max(1, seg.until - seg.at)))
 }
 
 /** Viewport y of a card's top at this scroll position. */
-export const cardTop = (seg: Segment, scroll: number) => seg.top - scroll
+export function cardTop(seg: Segment, scroll: number) {
+  if (scroll < seg.at) return seg.pinned + (seg.at - scroll)
+  if (scroll > seg.until) return seg.pinned - seg.overflow - (scroll - seg.until)
+  return seg.pinned - seg.overflow * ((scroll - seg.at) / Math.max(1, seg.until - seg.at))
+}
 
-/** Index of the chapter whose card crossed the reading line most recently. */
+/** Index of the chapter whose card pinned most recently. */
 export function activeAt(plan: Plan, scroll: number) {
   let idx = 0
   plan.segments.forEach((s, i) => {
     if (scroll >= s.at - 0.5) idx = i
   })
   return idx
-}
-
-/** How far through chapter i the scroll is, 0–1: from its takeover to the next chapter's. The last one is always done. */
-export function progressAt(plan: Plan, i: number, scroll: number) {
-  const seg = plan.segments[i]
-  const next = plan.segments[i + 1]
-  if (!seg || !next) return 1
-  return Math.min(1, Math.max(0, (scroll - seg.at) / Math.max(1, next.at - seg.at)))
 }

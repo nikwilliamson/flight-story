@@ -38,8 +38,8 @@ function timeFor(ch: Chapter, p: number) {
 
 /**
  * Runs the story off the page scroll, the wireframe's original way (Nik): the scroll scrubs everything. A chapter
- * takes over when its card crosses the reading line; the camera heads for its shot at once and the lines draw with
- * the scroll at the same time, both easing so a flick of the wheel never jumps. Scrolling back up runs it backwards.
+ * takes over when its card pins; the camera heads for its shot at once and the lines draw with the scroll while the
+ * card stays pinned, both easing so a flick of the wheel never jumps. Scrolling back up runs it backwards.
  */
 export function ScrollDriver() {
   const state = useRef({ active: -1, shown: STORY_END }).current
@@ -57,8 +57,7 @@ export function ScrollDriver() {
       const seg = plan?.segments[index]
       if (!plan || !seg) return
       clearInterval(timer)
-      const next = plan.segments[index + 1]
-      window.scrollTo(0, seg.at + 1 + (next ? (next.at - seg.at - 2) * at : 0))
+      window.scrollTo(0, seg.at + 1 + (seg.until - seg.at - 2) * at)
     }, 100)
     return () => clearInterval(timer)
   }, [])

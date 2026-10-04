@@ -6,9 +6,7 @@ import type { Chapter } from './chapters'
  * jumps to the start of a chapter.
  */
 export const PACING = {
-  /** Where a card's top has to reach for its chapter to take over, as a share of the screen height from the top. */
-  startLine: 0.8,
-  /** Every chapter's scroll: the floor (it always covers the card too), and the ceiling however many legs it draws. */
+  /** How long each card stays pinned while its chapter scrubs: the floor, and the ceiling however many legs it draws. */
   minScroll: 1,
   /** Scroll every leg-drawing chapter starts from, before its legs add theirs. */
   base: 0.6,
@@ -33,6 +31,12 @@ export const PACING = {
   camera: 2,
   /** How fast the camera turns into the direction of travel, per second. */
   yaw: 0.8,
+  /** Debouncing: a new chapter's shot closer than this (degrees, and log-zoom) to the current one doesn't move the camera. */
+  minMoveDeg: 4,
+  minZoom: 0.15,
+  /** Debouncing: the travel heading changes only by more than this (radians), held this long (seconds). */
+  minYaw: 0.2,
+  yawHold: 1.2,
   /** Highlight fades, per second (4 = about a second). */
   highlight: 2.5,
 } as const

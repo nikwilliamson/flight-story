@@ -66,7 +66,7 @@ export function StoryCamera() {
   const gl = useThree((s) => s.gl)
   const size = useThree((s) => s.size)
   // Mutable across renders: a resize re-renders this component but must not reset the move in progress.
-  const state = useRef({ target: { ...useStory.getState().shot }, shot: useStory.getState().shot, userTookOver: false, dragging: false, yaw: 0 }).current
+  const state = useRef({ target: { ...useStory.getState().shot }, shot: useStory.getState().shot, userTookOver: false, dragging: false, yaw: 0, yawGoal: 0, yawHeld: 0 }).current
   const { target } = state
   useEffect(() => {
     view.camera = cam
@@ -133,12 +133,18 @@ export function StoryCamera() {
     if (next !== state.shot) {
       // A new shot retargets and hands the camera back from any drag.
       state.shot = next
-      Object.assign(target, next)
       state.userTookOver = false
-      camera.lon += drift.lon
-      drift.lon = 0
-      state.yaw = next.fit?.length ? yawAlong(longest(next.fit), latLonToVec3(next.lat, next.lon)) : 0
-      if (next.fit?.length) target.zoom = fitZoom(next, state.yaw, cam, size.width, size.height, useStory.getState().stage)
+      const yaw = next.fit?.length ? yawAlong(longest(next.fit), latLonToVec3(next.lat, next.lon)) : 0
+      const zoom = next.fit?.length ? fitZoom(next, yaw, cam, size.width, size.height, useStory.getState().stage) : next.zoom
+      // Debounced (Nik): a shot that barely differs from where the camera is already headed doesn't move it at all.
+      const small = Math.abs(wrap(next.lon - target.lon)) < PACING.minMoveDeg && Math.abs(next.lat - target.lat) < PACING.minMoveDeg && Math.abs(Math.log(zoom / target.zoom)) < PACING.minZoom
+      if (!small) {
+        Object.assign(target, next, { zoom })
+        camera.lon += drift.lon
+        drift.lon = 0
+        state.yaw = yaw
+      }
+      target.spin = next.spin
       Object.assign(goal, { shot: next, lon: target.lon, lat: target.lat, zoom: target.zoom })
     } else if (state.shot.spin && !state.userTookOver) {
       target.lon += (dt * SPIN_DEG_PER_S) / Math.max(1, camera.zoom)
@@ -146,7 +152,12 @@ export function StoryCamera() {
 
     // Into the direction of travel (v48): the fitted legs' heading, or while a chapter plays, the leg in the air.
     const flying = !state.shot.fit?.length && Number.isFinite(timeline.focusFrom) && !timeline.reveal && timeline.time < STORY_END
-    const yawTarget = state.userTookOver ? 0 : flying ? yawAlong(Math.min(legs.length - 1, Math.floor(timeline.time)), latLonToVec3(camera.lat, camera.lon)) : state.yaw
+    const wanted = state.userTookOver ? 0 : flying ? yawAlong(Math.min(legs.length - 1, Math.floor(timeline.time)), latLonToVec3(camera.lat, camera.lon)) : state.yaw
+    // Debounced: the heading only changes once a new one is clearly different and has held for a beat, so a run of
+    // short hops doesn't wobble the view.
+    if (Math.abs(wanted - state.yawGoal) < PACING.minYaw) state.yawHeld = 0
+    else if ((state.yawHeld += dt) > PACING.yawHold || !flying) [state.yawGoal, state.yawHeld] = [wanted, 0]
+    const yawTarget = state.yawGoal
     camera.yaw += (yawTarget - camera.yaw) * (reduceMotion() ? 1 : 1 - Math.exp(-dt * PACING.yaw))
 
     const s = reduceMotion() ? 1 : 1 - Math.exp(-dt * PACING.camera)
