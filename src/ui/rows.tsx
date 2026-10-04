@@ -5,6 +5,7 @@ import { Glass } from './Glass'
 import { Label } from './Label'
 import { fonts } from './fonts'
 import { ui } from './tokens'
+import { FilterChips, layoutChips, ListModule, listHeight } from './interactive'
 
 /**
  * A card is a column of rows. A row either knows its height up front (single-line layouts, computed from the type
@@ -221,6 +222,14 @@ export function moduleRow(m: Module, width: number, s: number): Row {
         render: (y, onHeight) => <PlaneList y={y} width={width} s={s} label={m.label} planes={m.planes} onHeight={onHeight} />,
       }
     }
+    case 'list':
+      return { gap, height: listHeight(m.top, s), render: (y) => <ListModule y={y} width={width} s={s} label={m.label} list={m.list} top={m.top} /> }
+    case 'filters':
+      return {
+        gap,
+        height: layoutChips(m.chips.map((c) => c.label), width, s).height,
+        render: (y) => <FilterChips y={y} width={width} s={s} label={m.label} chips={m.chips} />,
+      }
     case 'nights': {
       const cols = 10
       const spacing = 4 * s

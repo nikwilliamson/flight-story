@@ -2,6 +2,7 @@ import { airports, legs } from '../data'
 import { facts, fmt, span } from '../data/facts'
 import { airlineGroups, groups, planeGroups } from '../data/indexes'
 import { SAFETY_NETWORK_FACT, STORIES } from '../content/stories'
+import type { ListId, ListRow } from '../explore/lists'
 import type { Leg } from '../data/types'
 import { legDate } from './timeline'
 import { SHOTS } from './shots'
@@ -17,6 +18,10 @@ export type Module =
   | { kind: 'table'; label: string; rows: string[][] }
   | { kind: 'nights'; label: string; nights: (string | null)[] }
   | { kind: 'planes'; label: string; planes: Plane[] }
+  /** After the story: a ranked list's top rows, each lighting its legs on hover and flying there on click. */
+  | { kind: 'list'; label: string; list: ListId; top: number }
+  /** After the story: filter chips that light and fly like list rows. */
+  | { kind: 'filters'; label: string; chips: ListRow[] }
 
 /** An airframe card: what it was, how old, where he flew it, and its story if it has one. */
 export interface Plane {
@@ -27,14 +32,18 @@ export interface Plane {
   story?: string
 }
 
-export interface Chapter {
-  id: string
-  /** Shown in the rail. */
-  label: string
+/** What a card shows: story chapters and the tab panels after the story share the card. */
+export interface CardContent {
   eyebrow: string
   title: string
   body: string
   modules: Module[]
+}
+
+export interface Chapter extends CardContent {
+  id: string
+  /** Shown in the rail. */
+  label: string
   shot: Shot
   /** Leg ids (1-based, inclusive) that draw as the reader scrolls; omitted = the whole log, already drawn. */
   range?: [number, number]

@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useMemo, useState } from 'react'
 import type { Group } from 'three'
-import type { Chapter } from '../story/chapters'
+import type { CardContent } from '../story/chapters'
 import { Glass } from './Glass'
 import { Label } from './Label'
 import { fonts } from './fonts'
@@ -11,7 +11,7 @@ const PADDING = 26
 const MILLION = '1,000,000'
 
 interface Props {
-  chapter: Chapter
+  chapter: CardContent
   width: number
   /** Type scale. */
   s: number

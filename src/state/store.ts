@@ -18,6 +18,10 @@ export interface Stage {
   height: number
 }
 
+export type TabId = 'explore' | 'trips' | 'airports' | 'planes' | 'airlines' | 'log'
+/** A full list or the log, in an HTML panel ("Show all"). */
+export type SheetId = 'trips' | 'airports' | 'families' | 'planes' | 'airlines' | 'log'
+
 interface State {
   shot: Shot
   stage: Stage | null
@@ -29,6 +33,16 @@ interface State {
   setStage: (stage: Stage | null) => void
   setHighlight: (legs: readonly number[]) => void
   setInteractive: (interactive: boolean) => void
+  /** After the story: which tab is open (null = the closing card). */
+  tab: TabId | null
+  sheet: SheetId | null
+  /** Leg indices under the pointer in a tab, and the clicked selection, which stays lit (wireframe). */
+  hover: readonly number[] | null
+  selection: { id: string; legs: readonly number[] } | null
+  setTab: (tab: TabId | null) => void
+  setSheet: (sheet: SheetId | null) => void
+  setHover: (legs: readonly number[] | null) => void
+  setSelection: (selection: { id: string; legs: readonly number[] } | null) => void
 }
 
 /** Scroll, tabs and debug write here; the scene reads it, usually straight from its frame loop via getState(). */
@@ -41,4 +55,12 @@ export const useStory = create<State>()((set) => ({
   setStage: (stage) => set({ stage }),
   setHighlight: (highlight) => set({ highlight }),
   setInteractive: (interactive) => set({ interactive }),
+  tab: null,
+  sheet: null,
+  hover: null,
+  selection: null,
+  setTab: (tab) => set({ tab, sheet: tab === 'log' ? 'log' : null, hover: null }),
+  setSheet: (sheet) => set({ sheet, hover: null }),
+  setHover: (hover) => set({ hover }),
+  setSelection: (selection) => set({ selection }),
 }))

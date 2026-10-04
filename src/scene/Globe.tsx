@@ -15,6 +15,8 @@ import { timeline } from '../story/timeline'
 import { scroll } from '../story/scrollState'
 import { DebugHash } from '../story/debug'
 import { ScrollDriver } from '../story/ScrollDriver'
+import { TabDriver } from '../explore/TabDriver'
+import { useStory } from '../state/store'
 import { UiLayer } from '../ui/UiLayer'
 import { Moon } from './Moon'
 import { DistanceTracks } from './DistanceTracks'
@@ -56,7 +58,7 @@ export function Globe() {
       onCreated={(state) => {
         state.gl.setClearColor(palette.space, 1)
         // Debug: #probe exposes the camera for automated motion checks.
-        if (debug.has('probe')) Object.assign(window, { __camera: state.camera, __timeline: timeline, __scroll: scroll, __cam: storyCamera })
+        if (debug.has('probe')) Object.assign(window, { __camera: state.camera, __timeline: timeline, __scroll: scroll, __cam: storyCamera, __story: useStory })
       }}
     >
       <Backdrop />
@@ -80,6 +82,8 @@ export function Globe() {
       <DistanceCamera />
       <DebugHash />
       <ScrollDriver />
+      {/* After the scroll driver, so the tabs' highlight and fly-to win at the end of the story. */}
+      <TabDriver />
       {!debug.has('noui') && <UiLayer />}
       {!(fullEffects && !debug.has('raw')) && <PlainRender />}
       {fullEffects && !debug.has('raw') && (
