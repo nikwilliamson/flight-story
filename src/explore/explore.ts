@@ -51,6 +51,7 @@ export function shotFor(set: readonly number[]): Shot | null {
     lat: (Math.asin(centre.y) * 180) / Math.PI,
     lon: (Math.atan2(centre.x, centre.z) * 180) / Math.PI,
     zoom,
+    fit: set,
   }
 }
 

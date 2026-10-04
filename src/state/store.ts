@@ -8,6 +8,11 @@ export interface Shot {
   zoom: number
   /** Drift east at 4°/s (on screen, at any zoom). */
   spin?: boolean
+  /**
+   * Leg indices (id - 1) to keep in frame: the camera zooms out as far as it must for both ends of each to show once
+   * it is tilted and turned, and turns into the longest one's direction of travel.
+   */
+  fit?: readonly number[]
 }
 
 /** The part of the screen the globe is framed in, in CSS px. Cards and panels own the rest. */

@@ -51,8 +51,6 @@ export interface Chapter extends CardContent {
   hold?: boolean
   /** Leg ids lit in white while the chapter is on. */
   highlight?: number[]
-  /** How long the chapter plays once the camera is there, seconds; omitted = paced by its leg count (ScrollDriver). */
-  duration?: number
   /** The skydive: the onboard footage plays behind the globe, in real time. */
   jump?: boolean
   /** The distance section: one line laps the Earth, then unspools to the Moon and back, played on the chapter's clock. */
@@ -336,8 +334,6 @@ export const CHAPTERS: Chapter[] = [
     range: RANGES.peak,
     hold: true,
     highlight: [RANGES.jump[0]],
-    // The footage runs in real time from the fade-in to the door (JUMP.IN–DOOR), then the drop.
-    duration: 19,
     jump: true,
   },
   {
@@ -401,7 +397,6 @@ export const CHAPTERS: Chapter[] = [
       { kind: 'fact', text: `Light would cover all of it in about ${fmt(facts.lightSeconds)} seconds.` },
     ],
     shot: SHOTS.laps,
-    duration: 14,
     scene: 'laps',
   },
   {
@@ -412,7 +407,6 @@ export const CHAPTERS: Chapter[] = [
     body: `Now unwind it. Keep the same line, pull back far enough to see the Moon at its real size and distance, and let the line peel off the Earth. Every lap that comes off becomes part of a figure 8 round the Moon, until it reaches the Moon and back ${fmt(facts.moonTrips, 1)} times.`,
     modules: [{ kind: 'fact', text: `That's still only ${fmt(facts.sunShare * 100)}% of the way to the Sun.` }],
     shot: SHOTS.moon,
-    duration: 26,
     scene: 'moon',
   },
   {

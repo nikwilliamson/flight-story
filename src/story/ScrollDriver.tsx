@@ -8,11 +8,19 @@ import { scroll } from './scrollState'
 import { FLIGHT, STORY_END, timeline } from './timeline'
 import { jump } from './jump'
 import { distance } from './distance'
+import { PACING, playFor } from './pacing'
 
-/** Lines wait this long after the camera arrives before the chapter starts playing (Nik, buffer rule). */
-const LINE_DELAY_S = 0.35
 /** Above this many legs of catch-up outside the chapter's range, cut instead of animating. */
 const SNAP_LEGS = 250
+
+/** Chapters small enough to frame whole keep every leg's airports in view (Nik); big ones keep their authored shot. */
+const FIT_LEGS = 40
+const SHOTS = CHAPTERS.map((ch) => {
+  const lit = ids(ch.highlight)
+  const range = ch.range && !ch.hold && ch.range[1] - ch.range[0] < FIT_LEGS ? Array.from({ length: ch.range[1] - ch.range[0] + 1 }, (_, k) => ch.range![0] - 1 + k) : []
+  const fit = lit.length ? lit : range
+  return fit.length ? { ...ch.shot, fit } : ch.shot
+})
 
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 const ids = (list: number[] = []) => list.map((id) => id - 1)
@@ -20,15 +28,12 @@ const JUMP_INDEX = CHAPTERS.findIndex((c) => c.jump)
 const LAPS_INDEX = CHAPTERS.findIndex((c) => c.scene === 'laps')
 const MOON_INDEX = CHAPTERS.findIndex((c) => c.scene === 'moon')
 
-/**
- * Seconds a chapter plays for. Big chapters get longer so a few hundred legs never read as skipped (Nik): roughly
- * 40 ms a leg on top of a couple of seconds, capped so the reader isn't kept waiting.
- */
+/** Seconds a chapter plays for (pacing.ts). Big chapters get longer so a few hundred legs never read as skipped. */
 export function durationOf(ch: Chapter) {
-  if (ch.duration) return ch.duration
-  if (!ch.range || ch.hold) return 2
-  const legs = ch.range[1] - ch.range[0] + 1
-  return Math.min(14, Math.max(3, 2 + legs * 0.04))
+  if (ch.jump) return PACING.jump
+  if (ch.scene) return PACING[ch.scene]
+  if (!ch.range || ch.hold) return PACING.hold
+  return playFor(ch.range[1] - ch.range[0] + 1)
 }
 
 /** Story time at chapter progress p: legs scrub from the first's takeoff to the last's landing. */
@@ -44,7 +49,36 @@ function timeFor(ch: Chapter, p: number) {
  * card crosses the reading line. The camera retargets at once, and once it is visually there plus a beat the chapter
  * plays on its own clock, however fast or slow the reader scrolls. Scrolling back up shows a chapter's end state.
  */
+/**
+ * The distance section holds the page while it plays (Nik: a fixed animation that scrolljacks): scrolling on is
+ * swallowed until the chapter's clock runs out, scrolling back up still works. `y` is where the page is held.
+ */
+const pin = { on: false, y: 0 }
+const DOWN_KEYS = new Set(['ArrowDown', 'PageDown', 'End', ' '])
+
+function usePin() {
+  useEffect(() => {
+    let touchY = 0
+    const wheel = (e: WheelEvent) => pin.on && e.deltaY > 0 && e.preventDefault()
+    const touchstart = (e: TouchEvent) => void (touchY = e.touches[0]?.clientY ?? 0)
+    // A finger moving up the screen scrolls the page down.
+    const touchmove = (e: TouchEvent) => pin.on && (e.touches[0]?.clientY ?? touchY) < touchY && e.preventDefault()
+    const keydown = (e: KeyboardEvent) => pin.on && DOWN_KEYS.has(e.key) && e.preventDefault()
+    addEventListener('wheel', wheel, { passive: false })
+    addEventListener('touchstart', touchstart, { passive: true })
+    addEventListener('touchmove', touchmove, { passive: false })
+    addEventListener('keydown', keydown)
+    return () => {
+      removeEventListener('wheel', wheel)
+      removeEventListener('touchstart', touchstart)
+      removeEventListener('touchmove', touchmove)
+      removeEventListener('keydown', keydown)
+    }
+  }, [])
+}
+
 export function ScrollDriver() {
+  usePin()
   const state = useRef({ active: -1, gateOpen: true, settledFor: 0, elapsed: 0, shown: STORY_END, startAt: -1 }).current
 
   // #ch=hockey scrolls to that chapter once the cards are laid out (screenshots, sharing a chapter); &p=0.5 starts
@@ -85,14 +119,24 @@ export function ScrollDriver() {
       }
       state.active = index
       const store = useStory.getState()
-      store.setShot(ch.shot)
+      store.setShot(SHOTS[index])
       store.setHighlight(ids(ch.highlight))
       store.setInteractive(index === CHAPTERS.length - 1)
     }
 
-    state.settledFor = settledOn(ch.shot) ? state.settledFor + dt : 0
-    if (!state.gateOpen && (ch.shot.spin || state.settledFor > LINE_DELAY_S)) state.gateOpen = true
+    state.settledFor = settledOn(SHOTS[index]) ? state.settledFor + dt : 0
+    if (!state.gateOpen && (ch.shot.spin || state.settledFor > PACING.lineDelay)) state.gateOpen = true
     if (state.gateOpen) state.elapsed = Math.min(duration, state.elapsed + dt)
+
+    const pinned = PACING.pinDistance && !!ch.scene && state.elapsed < duration && !reduceMotion()
+    if (pinned && !pin.on) {
+      // Hold the card where it took over; ease back if a flick carried the page past it.
+      pin.y = Math.min(y, plan.segments[index].at + innerHeight * 0.15)
+      if (y > pin.y + 2) window.scrollTo({ top: pin.y, behavior: 'smooth' })
+    }
+    // Momentum or the scrollbar can still get past the listeners: pull the page back.
+    if (pinned && y > pin.y + innerHeight * 0.3) window.scrollTo(0, pin.y)
+    pin.on = pinned
     const p = state.elapsed / duration
 
     const target = timeFor(ch, p)

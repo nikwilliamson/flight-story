@@ -9,7 +9,7 @@ export const palette = {
   outline: new Color('#8cc4ff'),
   relief: new Color('#3d6fb8'),
   /** Warm sodium-white city lights (Nik: warmer). */
-  lights: new Color('#ffdcae'),
+  lights: new Color('#ffe9cf'),
   airport: new Color('#f4f8ff'),
   domestic: new Color('#4cc9ff'),
   international: new Color('#ffb54a'),

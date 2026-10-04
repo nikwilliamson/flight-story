@@ -161,8 +161,8 @@ const fragmentShader = /* glsl */ `
     float fogAmount = fog * (0.55 + 0.9 * pow(1.0 - facing, 2.0)) * (0.55 + 0.45 * smoothstep(-0.4, 0.9, dot(vObj, uSun)));
     // Absorbing, not glowing: the fog pulls the surface toward a near-black navy, swallowing relief and lights where
     // it is thick. Only along the routes does a faint light come through it.
-    color = mix(color, uFog, clamp(fogAmount * 1.25, 0.0, 0.93));
-    color += uHaze * route * fog * 0.08;
+    color = mix(color, uFog, clamp(fogAmount * 0.9, 0.0, 0.75));
+    color += uHaze * route * fog * 0.04;
     // The grid sits on the outer shell, so the fog only half-hides it.
     color += uGrid * g * 0.85 * (1.0 - land * 0.5) * (1.0 - fogAmount * 0.35);
     // A faint emissive term on top (Nik: very slightly emissive), so the brightest cities glow through the haze.

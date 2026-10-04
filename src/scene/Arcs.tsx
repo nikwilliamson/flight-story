@@ -141,8 +141,8 @@ const vertexShader = /* glsl */ `
     float pixel = 2.0 * -mv.z / (projectionMatrix[1][1] * uResolution.y);
     ivec2 texel = ivec2(int(mod(aLeg, uHighlightWidth)), int(aLeg / uHighlightWidth));
     vHighlight = texelFetch(uHighlight, texel, 0).r;
-    // Lit legs thicken a little so they read through the dimmed field.
-    float width = uWidth * (aKind > 2.5 && aKind < 3.5 ? 0.8 : 1.0) * (1.0 + 0.6 * vHighlight);
+    // Lit legs keep the same width (Nik): they stand out by colour, not weight.
+    float width = uWidth * (aKind > 2.5 && aKind < 3.5 ? 0.8 : 1.0);
     // One extra pixel for the antialiased edge the fragment shader feathers.
     mv.xyz += side * aSide * (width + 1.0) * 0.5 * pixel;
     vSide = aSide;
@@ -209,7 +209,8 @@ const fragmentShader = /* glsl */ `
     float a = max(head * 2.4, ghost * apex * flown) * pattern;
     // Highlight: lit legs fade to white at full strength, everything else dims (both eased on the CPU). In an aside
     // a lit leg the timeline hasn't reached yet fades in whole.
-    float lit = max(a, 0.85 * apex * max(flown, uReveal) * pattern);
+    // Only a touch brighter than a line of the current chapter (Nik): white, not a glare.
+    float lit = max(a, min(1.0, uGhost * 2.6) * apex * max(flown, uReveal) * pattern);
     a = mix(a * (1.0 - ${DIM.toFixed(2)} * uDim), lit, vHighlight);
     color = mix(color, vec3(1.0), vHighlight);
     // Feathered edge, about a pixel wide, so the ribbon reads smooth rather than stair-stepped.
@@ -237,7 +238,7 @@ function makeMaterial() {
       uFlight: { value: FLIGHT },
       uTripStart: { value: 1e9 },
       uHistory: { value: 1 },
-      uGhost: { value: 0.26 },
+      uGhost: { value: 0.36 },
       uDim: { value: 0 },
       uReveal: { value: 0 },
       uHighlight: { value: highlight.texture },
