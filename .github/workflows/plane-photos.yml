@@ -1,0 +1,38 @@
+name: Plane photos
+
+# Fetches openly licensed photos of every logged tail from Wikimedia Commons and commits them.
+# Run it by hand after flights are added; only new tails are fetched unless "all" is set.
+on:
+  workflow_dispatch:
+    inputs:
+      all:
+        description: Re-check every tail
+        type: boolean
+        default: false
+  push:
+    branches: [claude/project-thread-tguq21]
+    paths: [scripts/fetch_tail_photos.py, .github/workflows/plane-photos.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: plane-photos-${{ github.ref }}
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pillow
+      - run: python scripts/fetch_tail_photos.py ${{ inputs.all && '--all' || '' }} | tee fetch.log
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898732+github-actions[bot]@users.noreply.github.com"
+          git add public/planes
+          git diff --cached --quiet || git commit -m "Plane photos: $(tail -1 fetch.log)"
+          git push
