@@ -6,6 +6,9 @@
 
 html, body { margin: 0; background: var(--space); }
 body { overscroll-behavior-y: none; }
+/* The rail of keys down the right edge is the scrollbar. */
+html { scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; }
 
 .app { position: fixed; inset: 0; }
 /* pan-y: vertical swipes scroll the page (the story); the globe takes drags only once released. */
