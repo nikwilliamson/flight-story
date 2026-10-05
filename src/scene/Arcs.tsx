@@ -19,6 +19,7 @@ const enum Kind {
   Ground = 3,
   /** Unknown origin: a trail that condenses out of nothing on its way into the known airport. */
   UnknownIn = 4,
+  Helicopter = 5,
 }
 
 /** Mean direction of a leg's likely airports, where its trail points. */
@@ -48,7 +49,7 @@ function collectArcs(terrain: TerrainRadius): ArcSpec[] {
       const away = candidateCentre(leg.candidates, airportVec, home.length())
       arcs.push(leg.from >= 0 ? { a: home, b: away, start: legStart[i], kind: Kind.UnknownOut, leg: i } : { a: away, b: home, start: legStart[i], kind: Kind.UnknownIn, leg: i })
     } else if (leg.from >= 0 && leg.to >= 0 && leg.from !== leg.to) {
-      arcs.push({ a: airportVec[leg.from], b: airportVec[leg.to], start: legStart[i], kind: leg.intl ? Kind.International : Kind.Domestic, leg: i })
+      arcs.push({ a: airportVec[leg.from], b: airportVec[leg.to], start: legStart[i], kind: leg.type === 'Helicopter' ? Kind.Helicopter : leg.intl ? Kind.International : Kind.Domestic, leg: i })
     }
     const prev = legs[i - 1]
     if (leg.ground && prev && prev.to >= 0 && leg.from >= 0 && prev.to !== leg.from) {
@@ -225,6 +226,7 @@ const fragmentShader = /* glsl */ `
   uniform vec3 uDomestic;
   uniform vec3 uInternational;
   uniform vec3 uGround;
+  uniform vec3 uHelicopter;
   uniform vec3 uSlate;
   uniform float uClose;
   uniform float uPass;
@@ -259,7 +261,10 @@ const fragmentShader = /* glsl */ `
     if (vKind > 2.5 && vKind < 3.5) { color = uGround; ghost *= 0.5; pattern = step(0.5, fract(vT * 30.0)); }   // by land
     // Unknown airport: solid, and gone well before the unknown end, so the trail just trails off.
     if (vKind > 1.5 && vKind < 2.5) pattern *= 1.0 - smoothstep(0.1, 0.7, vT);
-    if (vKind > 3.5) pattern *= smoothstep(0.3, 0.9, vT);
+    if (vKind > 3.5 && vKind < 4.5) pattern *= smoothstep(0.3, 0.9, vT);
+    // Helicopters: a handful of short hops in their own colour, kept at current-trip strength so they read on the tour
+    // chapter without lighting them up and dimming everything else (Nik).
+    if (vKind > 4.5) { color = uHelicopter; ghost = uGhost * mix(3.2, uHistory, uDim); }
 
     // Brightest at the apex and softer at the airports, like the light trails in the reference.
     // Routes dissolve over the last ~250 km into each airport, so hubs glow from the airport
@@ -330,6 +335,7 @@ function makeMaterial(pass: 0 | 1) {
       uDomestic: { value: palette.domestic },
       uInternational: { value: palette.international },
       uGround: { value: palette.ground },
+      uHelicopter: { value: palette.helicopter },
     },
   })
 }

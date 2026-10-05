@@ -16,6 +16,7 @@ export const ui = {
   accent: new Color('#ffb54a'),
   domestic: new Color('#4cc9ff'),
   international: new Color('#ffb54a'),
+  helicopter: new Color('#ff6fd8'),
   glass: new Color('#081020'),
   chip: new Color('#0f2340'),
   edge: new Color('#6fb6ff'),

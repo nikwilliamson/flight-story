@@ -34,6 +34,13 @@ const countLine = (count: number) => `leg ${fmt(count)} of ${fmt(legs.length)} Â
 const PROGRESS = 96
 const noRaycast = () => null
 
+/** Where the chapter progress line sits, px from the top. */
+const progressAt = (stage: Stage, s: number) =>
+  stage.y + space.l * s + type.displayL.size * type.displayL.line * s + space.xs * s + type.monoData.size * type.monoData.line * s + space.s * s
+
+/** The readout's foot, progress line included: where anything stacked under it starts. */
+export const hudBottom = (stage: Stage, s: number) => progressAt(stage, s) + space.l * s
+
 /** Gap between the readout and the rail at full swell, px. */
 const RAIL_GAP = space.l
 
@@ -61,7 +68,7 @@ export function StoryHud({ stage, s, phone }: { stage: Stage; s: number; phone: 
   })
   const x = stage.x + stage.width - RAIL_REACH * (phone ? RAIL_PHONE_SCALE : 1) - RAIL_GAP * s
   const y = stage.y + space.l * s
-  const progressY = y + type.displayL.size * type.displayL.line * s + space.xs * s + type.monoData.size * type.monoData.line * s + space.s * s
+  const progressY = progressAt(stage, s)
   return (
     <group>
       <Label x={x} y={y} role="displayL" s={s} color={ui.ink} align="right">

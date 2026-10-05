@@ -38,7 +38,7 @@ const LOG = legs.map((l, i) => {
     airline: l.airlineName ?? '',
     aircraft: [l.aircraft, l.tail].filter(Boolean).join(' · '),
     miles: l.miles ?? 0,
-    scope: l.intl === null ? '' : l.intl ? 'intl' : 'domestic',
+    scope: l.type === 'Helicopter' ? 'heli' : l.intl === null ? '' : l.intl ? 'intl' : 'domestic',
     hay: [l.sort.slice(0, 4), legDate(l), route, city(l.from), city(l.to), l.airlineName, l.airline, l.aircraft, l.family, l.family && TYPE_NAMES[l.family], l.tail, ROWS.get(`trip-${l.trip}`)?.label, `leg ${l.id}`].filter(Boolean).join(' ').toLowerCase(),
   }
 })
