@@ -83,7 +83,7 @@ export function TabBar({ layout }: { layout: Layout }) {
               }}
               onClick={(e) => {
                 e.stopPropagation()
-                // Journey, or the open tab again, closes it and goes back to where the reader was in the story.
+                // Journey, or the open tab again, closes it, back to the journey where the reader left it.
                 if (t.id === null || active) backToStory()
                 else openTab(t.id)
               }}
