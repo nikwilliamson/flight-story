@@ -10,10 +10,10 @@ FM_USERNAME=you python fm_export.py --save-html raw/ \
 ```
 
 - Password: `FM_PASSWORD` env var or a hidden prompt. Never written anywhere.
-- Columns use Flight Log names (Date, From, From Code, To, To Code, Airline, Flight #, Aircraft, Tail #, Logged Miles) then FlightMemory extras (times, duration, seat, class, reason, `FM Raw` = all cell text). km are converted to miles. Rows are chronological.
-- `--compare` adds three sheets matched on date + from + to: **Matched** (field diffs per leg), **Only on FlightMemory**, **Only in Log** (log legs inside the FM date range with no FM twin).
+- Columns use Flight Log names (Date, From, From Code, To, To Code, Airline, Flight #, Aircraft, Tail #, Logged Miles) then FlightMemory extras (countries, times, duration, seat, class, role, reason, Future, FM ID, `FM Raw` = all cell text). `FM #` is FlightMemory's running leg number and sets the row order, so rows are chronological like the log. km are converted to miles; mm-dd-yyyy vs dd.mm.yyyy dates are detected from the data.
+- `--compare` adds three sheets. Legs pair on date + from + to, then on the same date + flight number (an airport code differs), then on the same route within 3 days (the date differs). **Matched** lists per-leg differences in Date, From/To Code, Flight # and Tail #; **Only on FlightMemory** and **Only in Log** (inside FM's date range) list the unpaired legs.
 - `--save-html DIR` keeps the raw pages; `--from-html DIR` re-parses them without logging in. If the site layout changed and the parse comes back wrong, send the `raw/` folder.
 - `--headed` shows the browser (useful if a captcha or cookie banner blocks login).
 - `-o flights.csv` for CSV.
 
-Selectors come from the original repo (login fields `username` / `passwort`, `SignIn` button, `FLIGHTDATA` link, `next.gif` pager, 3rd `tbody` in `.container`). The parser is tested on synthetic pages in that shape; the live site was unreachable from the build container.
+Login uses the original repo's selectors (`username` / `passwort`, `SignIn`). The flight list is walked with `/signin/?go=flugdaten&dbpos=0,50,100…` (50 legs per page). The parser is fitted to a saved FLIGHTDATA page from October 2026: rows of 10 `td` plus one `th` for distance/duration, with the seat cell's `<small>` holding class, role and reason.
