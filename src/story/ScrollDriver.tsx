@@ -42,7 +42,7 @@ function timeFor(ch: Chapter, p: number) {
  * card stays pinned, both easing so a flick of the wheel never jumps. Scrolling back up runs it backwards.
  */
 export function ScrollDriver() {
-  const state = useRef({ active: -1, shown: STORY_END }).current
+  const state = useRef({ active: -1, shown: STORY_END, tab: false, easing: false }).current
 
   // #ch=hockey scrolls to that chapter once the cards are laid out (screenshots, sharing a chapter); &p=0.5 stops
   // part-way through it instead of at its end.
@@ -67,9 +67,16 @@ export function ScrollDriver() {
     if (!plan) return
     const dt = Math.min(delta, 0.1)
     const y = window.scrollY
-    const index = activeAt(plan, y)
+    // An open tab shows the whole log, as at the story's end, without moving the page (Nik): the journey keeps its
+    // place underneath, and closing the tab takes the globe back to it. The lines ease both ways rather than snap.
+    const tab = useStory.getState().tab !== null
+    if (tab !== state.tab) {
+      state.tab = tab
+      state.easing = true
+    }
+    const index = tab ? CHAPTERS.length - 1 : activeAt(plan, y)
     const ch = CHAPTERS[index]
-    const p = progressAt(plan, index, y)
+    const p = tab ? 1 : progressAt(plan, index, y)
 
     if (index !== state.active) {
       state.active = index
@@ -83,7 +90,8 @@ export function ScrollDriver() {
     const target = timeFor(ch, p)
     const gap = target - state.shown
     const inChapter = ch.range && state.shown >= ch.range[0] - 1 && state.shown <= ch.range[1] + FLIGHT
-    state.shown = Math.abs(gap) > SNAP_LEGS && !inChapter ? target : state.shown + gap * follow
+    if (Math.abs(gap) < 1) state.easing = false
+    state.shown = Math.abs(gap) > SNAP_LEGS && !inChapter && !state.easing ? target : state.shown + gap * follow
 
     timeline.time = state.shown
     timeline.focusFrom = ch.range && !ch.hold ? ch.range[0] - 1 : Infinity

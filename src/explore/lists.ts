@@ -1,5 +1,6 @@
 import { airports, legs } from '../data'
 import { airlineGroups, airportGroups, familyGroups, planeGroups, tripGroups } from '../data/indexes'
+import { tripName } from '../data/tripNames'
 
 /** One row of a tab's list: what it lights on hover and frames on click is `legs` (0-based leg indices). */
 export interface ListRow {
@@ -27,20 +28,16 @@ export type ListId = 'trips' | 'airports' | 'families' | 'planes' | 'airlines'
 const years = (a: string, b: string) => (a.slice(0, 4) === b.slice(0, 4) ? a.slice(0, 4) : `${a.slice(0, 4)}–${b.slice(0, 4)}`)
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const month = (d: string) => (d.length >= 7 ? `${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}` : d.slice(0, 4))
+/** A trip's start: the day where the log is sure of it, so same-named trips in one month tell apart. */
+const day = (d: string, exact: boolean) => (exact && d.length >= 10 ? `${Number(d.slice(8, 10))} ${month(d)}` : month(d))
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
-/** A trip's name: Steve's own purpose where he wrote one, otherwise its route. */
-function tripLabel(purpose: string | null, route: number[]) {
-  if (purpose) return purpose
-  const codes = route.map((i) => (i >= 0 ? airports[i].code : '?'))
-  return codes.length > 5 ? `${codes.slice(0, 4).join('–')}… ${codes.at(-1)}` : codes.join('–')
-}
 
 export const LISTS: Record<ListId, List> = {
   trips: {
     id: 'trips',
     noun: 'legs',
-    rows: tripGroups.map((t) => ({ id: `trip-${t.key}`, label: tripLabel(t.purpose, t.route), detail: month(t.start), count: t.count, legs: Array.from(t.legs) })),
+    rows: tripGroups.map((t) => ({ id: `trip-${t.key}`, label: tripName(t.purpose, t.legs), detail: day(t.start, legs[t.legs[0]].precision === 'Exact'), count: t.count, legs: Array.from(t.legs) })),
   },
   airports: {
     id: 'airports',

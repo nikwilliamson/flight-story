@@ -1,3 +1,4 @@
+import { TYPE_NAMES } from '../content/aircraft'
 import { DEFUNCT_AIRLINES } from '../content/airlines'
 import { airports, legs } from '.'
 import type { Leg } from './types'
@@ -65,7 +66,7 @@ export const airlineGroups = ranked<AirlineGroup>(
   (key, set) => legs[set[0]].airlineName ?? key,
 )
 
-export const familyGroups = ranked<Group>(groupBy((leg) => leg.family), () => ({}), (key) => key)
+export const familyGroups = ranked<Group>(groupBy((leg) => leg.family), () => ({}), (key) => TYPE_NAMES[key] ?? key)
 
 export const planeGroups = ranked<Group>(groupBy((leg) => leg.tail), () => ({}), (key) => key)
 

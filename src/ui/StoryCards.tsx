@@ -8,6 +8,7 @@ import { scroll } from '../story/scrollState'
 import type { Layout } from './layout'
 import { StoryCard } from './StoryCard'
 import { useStory } from '../state/store'
+import { tabBarBottom } from './TabBar'
 
 /**
  * Every chapter card, laid out once their text has been measured, then moved with the page scroll each frame.
@@ -20,8 +21,8 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
     () => CHAPTERS.map((_, i) => (h: number) => setHeights((prev) => (prev[i] === h ? prev : Object.assign([...prev], { [i]: h })))),
     [],
   )
-  // Phones pin cards in the strip under the pinned globe.
-  const top = layout.phone ? layout.card.y : 0
+  // Phones pin cards in the strip under the pinned globe; desktop keeps them under the always-on tab bar.
+  const top = layout.phone ? layout.card.y : tabBarBottom(layout) + 8
   const column = { top, bottom: layout.phone ? viewport - 16 : viewport, centre: !layout.phone }
 
   const plan = useMemo(() => {

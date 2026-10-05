@@ -1,18 +1,18 @@
 /**
  * Hand-researched stories (fun-facts thread, 2026-10-04), keyed to the leg id they belong to. Everything else on the
- * page is computed from the log; these are the only hand-written facts about individual planes.
+ * page is computed from the log; these are the only hand-written facts about individual aircraft.
  */
 export const STORIES: Record<number, string> = {
-  75: 'Aerobatic ride in plane #3 of the Ray-Ban sponsored Pitts team.',
+  75: 'Aerobatic ride in the No. 3 Pitts of the Ray-Ban-sponsored team.',
   98: 'G-VIRG "Maiden Voyager", Virgin Atlantic\'s very first 747, which flew the airline\'s inaugural flight in 1984. He was on it for Sandra\'s wedding.',
   723: 'From the grass field at Polk City.',
-  836: 'The "City of Philadelphia" in Kermit Weeks\' Fantasy of Flight collection. His oldest plane.',
-  990: 'Flew in the D-Day invasion, then became Prince Bernhard\'s personal plane (PBA: "Prins Bernhard Alpha").',
+  836: 'The "City of Philadelphia" in Kermit Weeks\' Fantasy of Flight collection. The oldest aircraft he ever flew on.',
+  990: 'Flew in the D-Day invasion, then became Prince Bernhard\'s personal aircraft (PBA: "Prins Bernhard Alpha").',
   1003: 'A barnstormer, also at Polk City.',
-  1385: 'Skydive from the drop-zone King Air N41DZ. The one flight where he took off and never landed with the plane.',
+  1385: 'Skydive from the drop-zone King Air N41DZ. The one flight where he took off and never landed with the aircraft.',
   1452: 'Delivered to Southwest eight days before he flew it.',
   989: 'In June 2015, as Delta 159 to Seoul, it flew through a hailstorm over China that smashed its nose and engines. It landed safely with 388 aboard and nobody hurt, but it was written off.',
-  1093: 'On 4 March 2019, as United Express 4933, it touched down in snow beside the runway at Presque Isle, Maine. Three minor injuries; the plane was written off.',
+  1093: 'On 4 March 2019, as United Express 4933, it touched down in snow beside the runway at Presque Isle, Maine. Three minor injuries; the aircraft was written off.',
   1139: 'In February 2018 a fan blade broke over the Pacific and tore the engine cowling away. It landed safely in Honolulu with 378 aboard.',
   1494: 'In October 2025 something, most likely a weather balloon, cracked its windshield at 36,000 feet.',
   1520: 'The third 777 ever built, from before the type entered service.',
