@@ -6,6 +6,7 @@ import { scrollOf } from '../story/pacing'
 import { cardTop, planScroll } from '../story/scrollPlan'
 import { setPlan } from '../story/scrollState'
 import { tabBarBottom, type Layout } from './layout'
+import { space } from './tokens'
 import { StoryCard } from './StoryCard'
 import { useStory } from '../state/store'
 
@@ -21,7 +22,7 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
     [],
   )
   // Phones pin cards in the strip under the pinned globe; desktop keeps them under the always-on tab bar.
-  const top = layout.phone ? layout.card.y : tabBarBottom(layout) + 8
+  const top = tabBarBottom(layout) + space.s
   const column = { top, bottom: layout.phone ? viewport - 16 : viewport, centre: !layout.phone }
 
   const plan = useMemo(() => {

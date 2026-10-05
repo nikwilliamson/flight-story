@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Color, ShaderMaterial } from 'three'
-import { ui } from './tokens'
+import { glass, radius as radii, ui } from './tokens'
 
 const vertexShader = /* glsl */ `
   varying vec2 vUv;
@@ -57,7 +57,7 @@ interface GlassProps {
 }
 
 /** Positioned by its top-left corner in the UI layer's px space (y down = negative). */
-export function Glass({ width, height, x = 0, y = 0, radius = 14, glow = 24, fill = 0.62, color = ui.glass, edge = ui.edge }: GlassProps) {
+export function Glass({ width, height, x = 0, y = 0, radius = radii.panel, glow = glass.glow, fill = glass.fill, color = ui.glass, edge = ui.edge }: GlassProps) {
   const material = useMemo(
     () =>
       new ShaderMaterial({

@@ -8,9 +8,8 @@ import { distance, LAPS, MOON_TRIPS } from '../story/distance'
 import { scroll } from '../story/scrollState'
 import type { Stage } from '../state/store'
 import { Label } from './Label'
-import { fonts } from './fonts'
 import { RAIL_PHONE_SCALE, RAIL_REACH } from './Rail'
-import { ui } from './tokens'
+import { space, type, ui } from './tokens'
 
 const cumulative = new Float64Array(legs.length)
 legs.forEach((l, i) => (cumulative[i] = (i ? cumulative[i - 1] : 0) + (l.miles ?? 0)))
@@ -31,7 +30,7 @@ const total = cumulative[legs.length - 1]
 const countLine = (count: number) => `leg ${fmt(count)} of ${fmt(legs.length)} · ${fmt(count ? cumulative[count - 1] : 0)} mi`
 
 /** Gap between the readout and the rail at full swell, px. */
-const RAIL_GAP = 14
+const RAIL_GAP = space.l
 
 /**
  * The year and running totals at the top right of the globe's stage, right-aligned and clear of the rail even when
@@ -44,13 +43,13 @@ export function StoryHud({ stage, s, phone }: { stage: Stage; s: number; phone: 
     if (next.title !== state.title || next.line !== state.line) setState(next)
   })
   const x = stage.x + stage.width - RAIL_REACH * (phone ? RAIL_PHONE_SCALE : 1) - RAIL_GAP * s
-  const y = stage.y + 18 * s
+  const y = stage.y + space.l * s
   return (
     <group>
-      <Label x={x} y={y} size={30 * s} color={ui.ink} font={fonts.display} lineHeight={1} align="right">
+      <Label x={x} y={y} role="displayL" s={s} color={ui.ink} align="right">
         {state.title}
       </Label>
-      <Label x={x} y={y + 34 * s} size={11 * s} color={ui.inkDim} font={fonts.mono} letterSpacing={0.04} align="right">
+      <Label x={x} y={y + type.displayL.size * type.displayL.line * s + space.xs * s} role="monoData" s={s} color={ui.inkDim} align="right">
         {state.line}
       </Label>
     </group>

@@ -4,6 +4,7 @@ import { Globe } from './scene/Globe'
 import { Sheet } from './ui/Sheet'
 import { Tabs } from './ui/Tabs'
 import { Fallback, SceneBoundary } from './ui/Fallback'
+import './ui/cssTokens'
 import './styles.css'
 
 createRoot(document.getElementById('root')!).render(

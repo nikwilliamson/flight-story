@@ -6,7 +6,6 @@ import { reducedMotion } from '../motion'
 import { useStory } from '../state/store'
 import { palette } from '../theme'
 import { Label } from './Label'
-import { fonts } from './fonts'
 import { ui } from './tokens'
 
 const BAR = 180
@@ -57,7 +56,7 @@ export function Loader() {
       </mesh>
       <group ref={marks}>
         {/* Narrow screens wrap the title onto two lines, raised by one so it still clears the bar. */}
-        <Label x={width / 2} y={y - 44 - (width < 600 ? titleSize * 1.1 : 0)} size={titleSize} width={width - 48} lineHeight={1.1} color={ui.ink} font={fonts.display} align="center">
+        <Label x={width / 2} y={y - 44 - (width < 600 ? titleSize * 1.1 : 0)} role="displayL" size={titleSize} width={width - 48} color={ui.ink} align="center">
           Steve's journey to 1,000,000 and more
         </Label>
         <mesh position={[width / 2, -(y + 6), 1]} raycast={noRaycast}>
@@ -66,7 +65,7 @@ export function Loader() {
         </mesh>
         <mesh ref={fill} position={[width / 2 - BAR / 2, -(y + 6), 1]} raycast={noRaycast}>
           <planeGeometry args={[BAR, 1.5]} />
-          <meshBasicMaterial color={ui.international} transparent depthTest={false} depthWrite={false} />
+          <meshBasicMaterial color={ui.accent} transparent depthTest={false} depthWrite={false} />
         </mesh>
       </group>
     </group>

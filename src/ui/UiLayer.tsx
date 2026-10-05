@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from 'react'
 import { useThree } from '@react-three/fiber'
 import { useStory } from '../state/store'
-import { layoutFor } from './layout'
+import { layoutFor, tabBarBottom } from './layout'
+import { space } from './tokens'
 import { Rail } from './Rail'
 import { Loader } from './Loader'
 import { ScreenLayer } from './ScreenLayer'
@@ -22,8 +23,9 @@ export function UiLayer() {
 
   return (
     <>
-      {/* Phones: the text scrolls in the space under the pinned globe and dissolves into it as it rises. */}
-      <ScreenLayer priority={2} fade={layout.phone ? { from: layout.stage.height - 56, to: layout.stage.height + 40, bottom: 20 } : null}>
+      {/* The text dissolves as it rises into the tab bar, gone before it reaches the pills (phones: under the pinned
+          globe; desktop: under the bar across the top), so cards never run behind the tabs. */}
+      <ScreenLayer priority={2} fade={{ from: tabBarBottom(layout), to: tabBarBottom(layout) + space.l, bottom: space.l }}>
         <StoryCards layout={layout} viewport={height} />
         <TabPanel layout={layout} />
       </ScreenLayer>

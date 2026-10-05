@@ -14,7 +14,7 @@ export type Module =
   | { kind: 'rank'; label: string; items: [string, string][] }
   | { kind: 'chips'; label: string; items: string[] }
   | { kind: 'fact'; text: string }
-  | { kind: 'pass'; label: string; from: [string, string]; to: [string, string]; rows: [string, string][] }
+  | { kind: 'pass'; label: string; from: [string, string]; to: [string, string]; intl: boolean; rows: [string, string][] }
   | { kind: 'table'; label: string; rows: string[][] }
   | { kind: 'nights'; label: string; nights: (string | null)[] }
   | { kind: 'planes'; label: string; planes: Plane[] }
@@ -187,6 +187,7 @@ export const CHAPTERS: Chapter[] = [
         label: 'Route card · leg 1',
         from: [code(first.from), airports[first.from].city],
         to: [code(first.to), airports[first.to].city],
+        intl: !!first.intl,
         rows: [['Date', legDate(first)], ['Airline', first.airlineName ?? ''], ['Aircraft', first.aircraft ?? ''], ['Distance', mi(first.miles ?? 0)]],
       },
     ],

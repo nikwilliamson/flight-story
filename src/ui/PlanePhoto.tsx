@@ -2,14 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { SRGBColorSpace, TextureLoader, type Mesh, type MeshBasicMaterial, type Texture } from 'three'
 import { creditFor, photoFor, photoUrl, type Photo } from '../data/photos'
-import { Hit } from './interactive'
+import { Hit, pointer } from './kit'
 import { Label } from './Label'
-import { fonts } from './fonts'
-import { ui } from './tokens'
+import { space, type, ui } from './tokens'
 
 /** Photo box: 16:9, cropped to cover. */
 export const PHOTO_ASPECT = 9 / 16
-export const creditHeight = (s: number) => 10 * s * 1.4 + 6 * s
+export const creditHeight = (s: number) => type.monoData.size * type.monoData.line * s + space.s * s
 
 /**
  * An airframe's photo across the top of its card, with the photographer and licence under it (linked to the Commons
@@ -68,7 +67,7 @@ export function PlanePhoto({ tail, x, y, width, s, onPhoto }: { tail: string | n
           <meshBasicMaterial map={texture} color="#d8dde6" transparent opacity={0} toneMapped={false} depthTest={false} depthWrite={false} />
         </mesh>
       )}
-      <Label x={x} y={y + height + 6 * s} size={10 * s} color={ui.inkFaint} font={fonts.mono} lineHeight={1.4} width={width} nowrap>
+      <Label x={x} y={y + height + space.xs * s} role="monoData" s={s} color={ui.inkFaint} width={width} nowrap>
         {creditFor(photo)}
       </Label>
       <Hit
@@ -76,8 +75,8 @@ export function PlanePhoto({ tail, x, y, width, s, onPhoto }: { tail: string | n
         y={y + height + 4 * s}
         width={width}
         height={creditHeight(s)}
-        onPointerOver={() => void (document.body.style.cursor = 'pointer')}
-        onPointerOut={() => void (document.body.style.cursor = '')}
+        onPointerOver={() => pointer(true)}
+        onPointerOut={() => pointer(false)}
         onClick={(e) => {
           e.stopPropagation()
           window.open(photo.source, '_blank', 'noopener')

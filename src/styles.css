@@ -1,4 +1,7 @@
-/* Full-bleed fixed canvas over an empty scroll spacer. Nearly everything visible is drawn in the scene. */
+/*
+ * Full-bleed fixed canvas over an empty scroll spacer. Nearly everything visible is drawn in the scene; the HTML here
+ * (tabs, the sheet, the fallback) reads the same tokens as the scene's UI, set as custom properties by cssTokens.ts.
+ */
 :root {
   --space: #03060d;
   color-scheme: dark;
@@ -15,91 +18,112 @@ html::-webkit-scrollbar { display: none; }
 .globe { position: absolute !important; inset: 0; touch-action: pan-y; }
 #scroll-spacer { height: 100vh; }
 
-/* "Show all" and the log: HTML glass to match the scene's cards. */
-.sheet {
-  position: fixed;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  background: rgba(8, 16, 32, 0.94);
-  border: 1px solid rgba(111, 182, 255, 0.22);
-  border-radius: 16px;
-  box-shadow: 0 0 40px rgba(76, 201, 255, 0.08);
+/* Glass, as Glass.tsx draws it in the scene: the tinted body, an edge brightest along the top. */
+.glass, .sheet, .pill {
+  background: linear-gradient(rgb(var(--glass-rgb) / calc(var(--glass-fill) + 0.1)), rgb(var(--glass-rgb) / var(--glass-fill)));
+  border: 1px solid rgb(var(--edge-rgb) / 0.12);
+  border-top-color: rgb(var(--edge-rgb) / 0.4);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  color: #e6eefb;
-  font: 15px/1.4 'Story Body', system-ui, sans-serif;
-  overflow: hidden;
 }
-.sheet-head { display: grid; grid-template-columns: 1fr auto; gap: 10px 12px; padding: 20px 22px 12px; border-bottom: 1px solid rgba(111, 182, 255, 0.12); }
-.sheet-head h2 { margin: 0; font: 600 26px/1.1 'Story Display', sans-serif; }
-.sheet-close { background: none; border: 0; color: #8ea3c2; font-size: 26px; line-height: 1; cursor: pointer; padding: 0 4px; }
-.sheet-close:hover { color: #e6eefb; }
-.sheet-search {
-  grid-column: 1 / -1;
-  background: #0f2340;
-  border: 1px solid rgba(111, 182, 255, 0.25);
-  border-radius: 999px;
-  color: #e6eefb;
-  font: inherit;
-  padding: 9px 16px;
-  outline: none;
-}
-.sheet-search:focus { border-color: #4cc9ff; }
-.sheet-meta { grid-column: 1 / -1; display: flex; justify-content: space-between; font: 11px 'Story Mono', monospace; color: #4f6283; letter-spacing: 0.06em; text-transform: uppercase; }
-.sheet-meta button { background: none; border: 0; color: #4cc9ff; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; padding: 0; }
-.sheet-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 6px 10px 16px; }
-.sheet-body ol { list-style: none; margin: 0; padding: 0; }
-.sheet-body li { border-radius: 8px; cursor: pointer; }
-.sheet-body li:hover, .sheet-body li.on { background: #0f2340; }
-.sheet-body li.on .rank, .sheet-body li.on .route { color: #ffb54a; }
-.sheet-list li { display: grid; grid-template-columns: 34px 1fr auto; align-items: baseline; gap: 8px; padding: 6px 12px; }
-.sheet-list .rank, .sheet-list .count { font: 12.5px 'Story Mono', monospace; color: #4f6283; }
-.sheet-list .count { color: #8ea3c2; }
-.sheet-list .label em { margin-left: 8px; font: 10px 'Story Mono', monospace; font-style: normal; color: #ffb54a; text-transform: uppercase; letter-spacing: 0.08em; }
-.sheet-list .label small { display: block; color: #8ea3c2; font-size: 12.5px; }
-.sheet-log li { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding: 8px 12px; }
-.sheet-log .when { font: 11px 'Story Mono', monospace; color: #8ea3c2; grid-column: 1 / -1; }
-.sheet-log .route { font: 15px 'Story Mono', monospace; color: #4cc9ff; }
-.sheet-log .miles { font: 12.5px 'Story Mono', monospace; color: #8ea3c2; text-align: right; }
-.sheet-log .miles::after { content: ' mi'; }
-.sheet-log .places, .sheet-log .craft { grid-column: 1 / -1; font-size: 13.5px; color: #e6eefb; }
-.sheet-log .craft { color: #8ea3c2; }
 
-/* The tabs: HTML chrome over the canvas, glass chips like the scene's (Glass.tsx: edge brightest along the top). */
-.tabs {
-  position: fixed;
-  z-index: 11;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  gap: calc(6px * var(--tab-k));
-  pointer-events: none;
-  animation: tabs-in 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-.tab {
-  pointer-events: auto;
-  height: var(--tab-h);
-  padding: 0 calc(13px * var(--tab-k));
+/* The one pill (kit.tsx Pill): dim text at rest; lit is white on a brighter fill, like a lit line on the globe. */
+.pill {
+  height: var(--pill);
+  padding: 0 var(--space-m);
   border-radius: 999px;
-  border: 1px solid rgba(111, 182, 255, 0.14);
-  border-top-color: rgba(111, 182, 255, 0.4);
-  background: linear-gradient(rgba(15, 35, 64, 0.62), rgba(15, 35, 64, 0.5));
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: #8ea3c2;
-  font: calc(13px * var(--tab-k)) / 1 'Story Body', system-ui, sans-serif;
+  background: rgb(var(--chip-rgb) / 0.55);
+  color: var(--ink-dim);
+  font: var(--body-s);
   white-space: nowrap;
   cursor: pointer;
   transition: color 0.25s, background-color 0.25s, box-shadow 0.4s;
   -webkit-tap-highlight-color: transparent;
 }
-.tab:hover { color: #e6eefb; background: rgba(15, 35, 64, 0.95); }
-.tab.on { color: #ffb54a; background: rgba(15, 35, 64, 0.95); box-shadow: 0 0 18px rgba(111, 182, 255, 0.16); }
-.tab:focus-visible { outline: 1px solid #4cc9ff; outline-offset: 2px; }
+.pill:hover, .pill.on { color: var(--ink); background: rgb(var(--chip-rgb) / 0.95); }
+.pill.on { box-shadow: 0 0 18px rgb(var(--edge-rgb) / 0.16); }
+.pill:focus-visible { outline: 1px solid rgb(var(--edge-rgb) / 0.8); outline-offset: 2px; }
+
+.tabs {
+  position: fixed;
+  z-index: 11;
+  left: var(--tabs-left);
+  display: flex;
+  gap: var(--space-s);
+  pointer-events: none;
+  animation: tabs-in 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.tabs .pill { pointer-events: auto; flex: none; }
+/* Phones: the full-size row scrolls sideways under the globe, fading out at its edges. */
+.tabs.phone {
+  left: 0;
+  right: 0;
+  padding: 0 var(--space-l);
+  overflow-x: auto;
+  scrollbar-width: none;
+  pointer-events: auto;
+  touch-action: pan-x;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--space-l), #000 calc(100% - var(--space-xl)), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 var(--space-l), #000 calc(100% - var(--space-xl)), transparent);
+}
+.tabs.phone::-webkit-scrollbar { display: none; }
+.tabs.phone::after { content: ''; flex: none; width: var(--space-s); }
 @keyframes tabs-in { from { opacity: 0; transform: translateY(-24px); } }
 @media (prefers-reduced-motion: reduce) { .tabs { animation: none; } }
+
+/* "Show all" and the log: a glass panel in the card column, with the scene's type and the same row as the scene. */
+.sheet {
+  position: fixed;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-panel);
+  box-shadow: 0 0 40px rgb(var(--edge-rgb) / 0.08);
+  color: var(--ink);
+  font: var(--body);
+  overflow: hidden;
+}
+.sheet-head { display: grid; grid-template-columns: 1fr auto; gap: var(--space-m); padding: var(--space-xl) var(--space-xl) var(--space-m); border-bottom: 1px solid rgb(var(--edge-rgb) / 0.12); }
+.sheet-head h2 { margin: 0; font: var(--display-l); letter-spacing: var(--display-l-tracking); }
+.sheet-close { background: none; border: 0; color: var(--ink-dim); font: var(--display-m); cursor: pointer; padding: 0 var(--space-xs); }
+.sheet-close:hover { color: var(--ink); }
+.sheet-search {
+  grid-column: 1 / -1;
+  background: rgb(var(--chip-rgb) / 0.8);
+  border: 1px solid rgb(var(--edge-rgb) / 0.2);
+  border-radius: 999px;
+  color: var(--ink);
+  font: var(--body);
+  padding: var(--space-s) var(--space-l);
+  outline: none;
+}
+.sheet-search:focus { border-color: rgb(var(--edge-rgb) / 0.6); }
+.sheet-meta { grid-column: 1 / -1; display: flex; justify-content: space-between; font: var(--mono-label); letter-spacing: var(--mono-label-tracking); text-transform: uppercase; color: var(--ink-faint); }
+.sheet-meta button { background: none; border: 0; color: var(--ink-dim); font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; padding: 0; }
+.sheet-meta button:hover { color: var(--ink); }
+.sheet-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-s) var(--space-l) var(--space-l); }
+.sheet-body ol { list-style: none; margin: 0; padding: 0; }
+.sheet-body li { border-radius: var(--radius-inner); cursor: pointer; }
+.sheet-body li:hover, .sheet-body li.on { background: rgb(var(--chip-rgb) / 0.7); }
+.sheet-empty { margin: var(--space-l) var(--space-s); color: var(--ink-dim); font: var(--body-s); }
+
+/* The list row (kit.tsx RankRow): rank, label over its detail, count. */
+.sheet-list li { display: grid; grid-template-columns: var(--rank) 1fr auto; align-items: baseline; padding: var(--space-xs) var(--space-s); min-height: calc(var(--row) - 2 * var(--space-xs)); }
+.sheet-list .rank, .sheet-list .count { font: var(--mono-data); color: var(--ink-faint); }
+.sheet-list .count { color: var(--ink-dim); }
+.sheet-list li:hover .rank, .sheet-list li.on .rank, .sheet-list li.on .count { color: var(--ink); }
+.sheet-list .label small { display: block; color: var(--ink-dim); font: var(--body-s); }
+
+/* The log: a leg per row, its route in its own colour as on the globe. */
+.sheet-log li { display: grid; grid-template-columns: 1fr auto; gap: 0 var(--space-m); padding: var(--space-s); }
+.sheet-log .when { font: var(--mono-data); color: var(--ink-dim); grid-column: 1 / -1; }
+.sheet-log .route { font: var(--display-s); color: var(--ink); }
+.sheet-log .route.domestic { color: var(--domestic); }
+.sheet-log .route.intl { color: var(--international); }
+.sheet-log .miles { font: var(--mono-data); color: var(--ink-dim); text-align: right; }
+.sheet-log .miles::after { content: ' mi'; }
+.sheet-log .places, .sheet-log .craft { grid-column: 1 / -1; font: var(--body-s); color: var(--ink); }
+.sheet-log .craft { color: var(--ink-dim); }
 
 /* When the scene can't draw: one line and a reload, centred on the empty page. */
 .fallback {
@@ -109,9 +133,9 @@ html::-webkit-scrollbar { display: none; }
   display: grid;
   place-content: center;
   justify-items: center;
-  gap: 16px;
-  color: #8ea3c2;
-  font: 16px/1.45 'Story Body', system-ui, sans-serif;
+  gap: var(--space-l);
+  color: var(--ink-dim);
+  font: var(--body);
   background: var(--space);
 }
 .fallback p { margin: 0; }

@@ -5,6 +5,7 @@ import { atEnd } from '../explore/explore'
 import { panelFor } from '../explore/panels'
 import { useStory } from '../state/store'
 import { tabBarBottom, type Layout } from './layout'
+import { space } from './tokens'
 import { StoryCard } from './StoryCard'
 
 const noop = () => {}
@@ -14,7 +15,7 @@ export function TabPanel({ layout }: { layout: Layout }) {
   const tab = useStory((s) => s.tab)
   const ref = useRef<Group>(null)
   const content = useMemo(() => (tab && tab !== 'log' ? panelFor(tab, layout.phone) : null), [tab, layout.phone])
-  const y = layout.phone ? layout.card.y : tabBarBottom(layout) + 16
+  const y = tabBarBottom(layout) + space.l
 
   useFrame(() => {
     const g = ref.current
