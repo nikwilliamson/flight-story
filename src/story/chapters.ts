@@ -1,3 +1,4 @@
+import { HOME_PLACES } from '../content/homes'
 import { airports, legs } from '../data'
 import { facts, fmt, span } from '../data/facts'
 import { airlineGroups, groups, planeGroups } from '../data/indexes'
@@ -14,7 +15,7 @@ export type Module =
   | { kind: 'rank'; label: string; items: [string, string][] }
   | { kind: 'chips'; label: string; items: string[] }
   | { kind: 'fact'; text: string }
-  | { kind: 'pass'; label: string; from: [string, string]; to: [string, string]; rows: [string, string][] }
+  | { kind: 'pass'; label: string; from: [string, string]; to: [string, string]; intl: boolean; rows: [string, string][] }
   | { kind: 'table'; label: string; rows: string[][] }
   | { kind: 'nights'; label: string; nights: (string | null)[] }
   | { kind: 'planes'; label: string; planes: Plane[] }
@@ -22,6 +23,8 @@ export type Module =
   | { kind: 'list'; label: string; list: ListId; top: number }
   /** After the story: filter chips that light and fly like list rows. */
   | { kind: 'filters'; label: string; chips: ListRow[] }
+  /** After the story: where he flew from, as a timeline whose stretches light like list rows. */
+  | { kind: 'homes'; label: string }
 
 /** An airframe card: what it was, how old, where he flew it, and its story if it has one. */
 export interface Plane {
@@ -95,7 +98,8 @@ function route(range: [number, number]): string[] {
 function homes(range: [number, number]): string[] {
   const out: string[] = []
   for (const leg of legsOf(range)) {
-    const c = `${airports[leg.home].city}`
+    const a = airports[leg.home]
+    const c = HOME_PLACES[a.code]?.[0] ?? a.city
     if (out.at(-1) !== c) out.push(c)
   }
   return out
@@ -135,6 +139,8 @@ function planes(label: string, ids: number[]): Module {
 }
 
 const first = legs[0]
+/** The log's span, so the copy moves on as legs are added. */
+const SPAN = `${first.sort.slice(0, 4)}–${legs[legs.length - 1].sort.slice(0, 4)}`
 const longestLeg = legs[facts.longest[0].id - 1]
 const hopper = facts.busiestDay.legs
 const hopperTails = new Map<string, number>()
@@ -168,8 +174,8 @@ const RANGES = {
 export const CHAPTERS: Chapter[] = [
   {
     id: 'opening',
-    label: '1965–2025',
-    eyebrow: '1965–2025',
+    label: SPAN,
+    eyebrow: SPAN,
     title: "Steve's journey to 1,000,000 and more",
     body: `Sixty years of flying, logged by hand, one row per leg. Steve has gone around the Earth ${fmt(facts.laps)} times, or to the Moon and back ${fmt(facts.moonTrips, 1)} times. Scroll to fly them in order.`,
     modules: [{ kind: 'stats', label: 'Totals', items: [['Legs', fmt(facts.legs)], ['Miles', fmt(facts.miles)], ['Airports', fmt(facts.airports)], ['Countries', fmt(facts.countries)]] }],
@@ -187,6 +193,7 @@ export const CHAPTERS: Chapter[] = [
         label: 'Route card · leg 1',
         from: [code(first.from), airports[first.from].city],
         to: [code(first.to), airports[first.to].city],
+        intl: !!first.intl,
         rows: [['Date', legDate(first)], ['Airline', first.airlineName ?? ''], ['Aircraft', first.aircraft ?? ''], ['Distance', mi(first.miles ?? 0)]],
       },
     ],
@@ -208,7 +215,7 @@ export const CHAPTERS: Chapter[] = [
     label: '1973',
     eyebrow: '1973–1981',
     title: 'Across the Atlantic',
-    body: 'March 1973: Heathrow to New York JFK for the first time. Over the next nine years home moved between London, New York and Boston, and the Atlantic turned into a commute.',
+    body: 'March 1973: Heathrow to New York JFK for the first time. Over the next eight years home moved from London to Connecticut, then to Boston, and the Atlantic turned into a commute.',
     modules: [{ kind: 'chips', label: 'Home base', items: homes(RANGES.atlantic) }],
     shot: SHOTS.atlantic,
     range: RANGES.atlantic,
@@ -218,7 +225,7 @@ export const CHAPTERS: Chapter[] = [
     label: '1982',
     eyebrow: '1982–1989',
     title: 'Florida',
-    body: 'Home became Fort Lauderdale in 1982 and Orlando in 1988, where it has stayed. Many 1980s dates are approximate, so Steve went back to old airline timetables and wrote down his reasoning.',
+    body: 'Home became Fort Lauderdale in 1981 and Orlando in 1988, where it has stayed apart from the Osaka years. Many 1980s dates are approximate, so Steve went back to old airline timetables and wrote down his reasoning.',
     modules: [precision(RANGES.florida)],
     shot: SHOTS.florida,
     range: RANGES.florida,
@@ -368,7 +375,7 @@ export const CHAPTERS: Chapter[] = [
   {
     id: 'stillGoing',
     label: '2015',
-    eyebrow: '2015–2025',
+    eyebrow: `2015–${SPAN.slice(-4)}`,
     title: 'Still going',
     body: `The pace eased after 2015 but never stopped. The last logged flight is ${airports[last.from].city} to ${airports[last.to].city} in ${legDate(last).replace(/^\d+ /, '')}.`,
     modules: [chapterStats([1317, legs.length])],
@@ -378,7 +385,7 @@ export const CHAPTERS: Chapter[] = [
   {
     id: 'gone',
     label: 'Gone',
-    eyebrow: '1965–2025',
+    eyebrow: SPAN,
     title: 'Gone now',
     body: `${fmt(defunctIds.length)} legs were on airlines that no longer exist: Eastern, Pan Am, TWA, Braniff, Northwest, Continental, US Airways, AirTran and more. Some airports went too.`,
     modules: [

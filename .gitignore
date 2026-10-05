@@ -2,3 +2,5 @@ node_modules/
 dist/
 validation-report.md
 *.xlsx
+__pycache__/
+.claude/worktrees/

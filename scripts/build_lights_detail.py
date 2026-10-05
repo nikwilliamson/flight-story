@@ -1,9 +1,9 @@
 """Sharper lights for the close-ups (the jump and the joyrides): central Florida cut from the NASA Black Marble 2016
 grayscale 500 m tile B1 (lon -90..0, lat 0..90, as downsampled to 8000 px in flight-globe/source-data).
 
-The tile is graded differently from the 3 km map, so its levels are matched to lights_viirs.png over the same box
+The tile is graded differently from the 3 km map, so its levels are matched to lights_4096.png over the same box
 (mean of the lit pixels), so the patch blends in with no visible edge.
-Usage: python3 scripts/build_lights_detail.py <BlackMarble_2016_B1_gray.jpg> <lights_viirs.png> <out.png>
+Usage: python3 scripts/build_lights_detail.py <BlackMarble_2016_B1_gray.jpg> <lights_4096.png> <out.png>
 """
 import sys
 from PIL import Image, ImageStat

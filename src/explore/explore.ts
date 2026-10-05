@@ -19,7 +19,7 @@ export const TABS: { id: TabId; label: string }[] = [
 export function tabOf(id: string): TabId {
   const kind = id.split('-')[0]
   if (kind === 'trip') return 'trips'
-  if (kind === 'airport') return 'airports'
+  if (kind === 'airport' || kind === 'home') return 'airports'
   if (kind === 'plane' || kind === 'family') return 'planes'
   if (kind === 'airline') return 'airlines'
   if (kind === 'leg') return 'log'

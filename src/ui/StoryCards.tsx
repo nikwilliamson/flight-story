@@ -4,9 +4,10 @@ import type { Group } from 'three'
 import { CHAPTERS } from '../story/chapters'
 import { scrollOf } from '../story/pacing'
 import { cardTop, planScroll } from '../story/scrollPlan'
-import { scroll } from '../story/scrollState'
+import { setPlan } from '../story/scrollState'
 import { tabBarBottom, type Layout } from './layout'
-import { StoryCard } from './StoryCard'
+import { space } from './tokens'
+import { openingTitle, StoryCard } from './StoryCard'
 import { useStory } from '../state/store'
 
 /**
@@ -21,7 +22,7 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
     [],
   )
   // Phones pin cards in the strip under the pinned globe; desktop keeps them under the always-on tab bar.
-  const top = layout.phone ? layout.card.y : tabBarBottom(layout) + 8
+  const top = tabBarBottom(layout) + space.s
   const column = { top, bottom: layout.phone ? viewport - 16 : viewport, centre: !layout.phone }
 
   const plan = useMemo(() => {
@@ -32,7 +33,7 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
   }, [heights, viewport, layout])
 
   useEffect(() => {
-    scroll.plan = plan
+    setPlan(plan)
     const spacer = document.getElementById('scroll-spacer')
     if (spacer && plan) spacer.style.height = `${Math.ceil(plan.length + viewport)}px`
   }, [plan, viewport])
@@ -48,6 +49,7 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
       const top = cardTop(seg, y)
       g.position.set(layout.card.x, -top, 0)
       g.visible = top < viewport && top + seg.height > 0 && !tabOpen
+      if (i === 0) Object.assign(openingTitle, { known: true, x: layout.card.x + openingTitle.dx, y: top + openingTitle.dy })
     })
   })
 

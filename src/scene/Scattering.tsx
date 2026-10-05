@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { BackSide, CustomBlending, OneFactor, OneMinusSrcAlphaFactor, ShaderMaterial, Vector3 } from 'three'
 import { sunDirection } from './light'
 import { TERRAIN } from './terrain'
+import { QUALITY } from './quality'
 
 /**
  * Physically based single scattering, after Maxime Heckel's "On rendering the sky, sunsets, and planets": Rayleigh
@@ -26,6 +27,9 @@ const defines = {
   MIE_H: (1.2 * KM).toFixed(6),
   OZONE_CENTER: (25 * KM).toFixed(6),
   OZONE_WIDTH: (15 * KM).toFixed(6),
+  // Ray-march sample counts, fewer on phones (QUALITY).
+  STEPS: QUALITY.scatterSteps.toFixed(0),
+  LIGHT_STEPS: QUALITY.scatterLightSteps.toFixed(0),
 }
 const perUnit = EARTH_KM / THICKEN
 const vec = (r: number, g: number, b: number) => `vec3(${[r, g, b].map((v) => (v * perUnit).toFixed(6)).join(', ')})`
@@ -39,8 +43,6 @@ const fragmentShader = /* glsl */ `
   const float MIE_G = 0.76;
   // Aerosols are what turn the haze white-gray over the disc; kept to a trace so the day side stays blue.
   const float MIE_GAIN = 0.4;
-  const int STEPS = 14;
-  const int LIGHT_STEPS = 6;
 
   uniform float uGround;
   uniform float uTop;

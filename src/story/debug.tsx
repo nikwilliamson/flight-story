@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { hashParams } from '../hash'
 import { groups } from '../data/indexes'
 import { useStory } from '../state/store'
 import { SHOTS, type ShotName } from './shots'
@@ -13,7 +14,7 @@ const TOUR_SECONDS = 5
  */
 export function DebugHash() {
   useEffect(() => {
-    const params = new URLSearchParams(location.hash.slice(1))
+    const params = hashParams
     const { setShot, setHighlight } = useStory.getState()
     const name = params.get('shot') as ShotName | null
     if (name && name in SHOTS) setShot(SHOTS[name])
