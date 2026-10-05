@@ -3,7 +3,7 @@ import { TYPE_NAMES } from '../content/aircraft'
 import { airports, legs } from '../data'
 import { fmt } from '../data/facts'
 import { select } from '../explore/explore'
-import { LISTS, type ListRow } from '../explore/lists'
+import { LISTS, ROWS, type ListRow } from '../explore/lists'
 import { useStory, type SheetId } from '../state/store'
 import { legDate } from '../story/timeline'
 import { fonts } from './fonts'
@@ -30,7 +30,10 @@ const TITLES: Record<SheetId, string> = {
 const code = (i: number) => (i >= 0 ? airports[i].code : '?')
 const city = (i: number) => (i >= 0 ? airports[i].city : '')
 
-/** The log as rows, with what search looks through. Fare, hotel and Steve's notes never leave the build or show. */
+/**
+ * The log as rows, with what search looks through. Fare, hotel and Steve's notes never leave the build or show; his
+ * trip purposes are matched only through the trip's shown name.
+ */
 const LOG = legs.map((l, i) => {
   const route = `${code(l.from)}–${code(l.to)}`
   const row: ListRow = { id: `leg-${l.id}`, label: route, count: 1, legs: [i] }
@@ -42,7 +45,7 @@ const LOG = legs.map((l, i) => {
     airline: l.airlineName ?? '',
     aircraft: [l.aircraft, l.tail].filter(Boolean).join(' · '),
     miles: l.miles ?? 0,
-    hay: [l.sort.slice(0, 4), legDate(l), route, city(l.from), city(l.to), l.airlineName, l.airline, l.aircraft, l.family, l.family && TYPE_NAMES[l.family], l.tail, l.purpose, `leg ${l.id}`].filter(Boolean).join(' ').toLowerCase(),
+    hay: [l.sort.slice(0, 4), legDate(l), route, city(l.from), city(l.to), l.airlineName, l.airline, l.aircraft, l.family, l.family && TYPE_NAMES[l.family], l.tail, ROWS.get(`trip-${l.trip}`)?.label, `leg ${l.id}`].filter(Boolean).join(' ').toLowerCase(),
   }
 })
 

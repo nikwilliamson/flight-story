@@ -1,8 +1,10 @@
 import raw from './flights.json'
+import { CITY_NAMES } from '../content/places'
 import type { FlightData, Leg } from './types'
 
 export const data = raw as FlightData
 export const { airports, legs } = data
+for (const a of airports) a.city = CITY_NAMES[a.code] ?? a.city
 
 const EARTH_CIRCUMFERENCE_MI = 24_901
 /** Rough block time: 30 min taxi/climb overhead plus cruise at ~500 mph. */
