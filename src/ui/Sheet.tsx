@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { TYPE_NAMES } from '../content/aircraft'
 import { airports, legs } from '../data'
 import { fmt } from '../data/facts'
 import { select } from '../explore/explore'
@@ -20,8 +21,8 @@ for (const [family, url] of faces) new FontFace(family, `url(${url})`).load().th
 const TITLES: Record<SheetId, string> = {
   trips: 'Every trip',
   airports: 'Every airport',
-  families: 'Every family',
-  planes: 'Every plane',
+  families: 'Every type',
+  planes: 'Every aircraft',
   airlines: 'Every airline',
   log: 'The log',
 }
@@ -41,7 +42,7 @@ const LOG = legs.map((l, i) => {
     airline: l.airlineName ?? '',
     aircraft: [l.aircraft, l.tail].filter(Boolean).join(' · '),
     miles: l.miles ?? 0,
-    hay: [l.sort.slice(0, 4), legDate(l), route, city(l.from), city(l.to), l.airlineName, l.airline, l.aircraft, l.family, l.tail, l.purpose, `leg ${l.id}`].filter(Boolean).join(' ').toLowerCase(),
+    hay: [l.sort.slice(0, 4), legDate(l), route, city(l.from), city(l.to), l.airlineName, l.airline, l.aircraft, l.family, l.family && TYPE_NAMES[l.family], l.tail, l.purpose, `leg ${l.id}`].filter(Boolean).join(' ').toLowerCase(),
   }
 })
 
