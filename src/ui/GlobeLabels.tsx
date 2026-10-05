@@ -14,8 +14,8 @@ import { pointer } from './kit'
 import type { Layout } from './layout'
 import { space, type, ui } from './tokens'
 
-/** Most airports named at once while a set is lit (the busiest in it). */
-const NAMED = { desktop: 10, phone: 6 }
+/** Most airports named at once while a set is lit (the busiest in it); none on phones, where the globe is small. */
+const NAMED = { desktop: 10, phone: 0 }
 /** How close the pointer must come to an airport to pick it, px. */
 const PICK_PX = 14
 /** A press that moves further than this is a drag (spinning the globe), not a click, px. */

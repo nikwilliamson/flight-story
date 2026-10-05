@@ -15,18 +15,18 @@ import { layoutPills, Pill } from './kit'
 import { tabBarTop, type Layout } from './layout'
 import { space, type, ui } from './tokens'
 
-const WIDTH = 340
+const WIDTH = 400
 const line = (role: keyof typeof type, s: number) => type[role].size * type[role].line * s
 
 /** The selection's numbers: legs, miles, the years it spans, the airports it touches. */
-function summary(set: readonly number[]) {
+function summary(set: readonly number[], compact: boolean) {
   const first = legs[set[0]]
   const last = legs[set[set.length - 1]]
   const miles = set.reduce((sum, i) => sum + (legs[i].miles ?? 0), 0)
   const fields = new Set(set.flatMap((i) => [legs[i].from, legs[i].to]).filter((a) => a >= 0))
   const from = first.sort.slice(0, 4)
   const to = last.sort.slice(0, 4)
-  return [set.length === 1 ? legDate(first) : `${fmt(set.length)} legs`, `${fmt(miles)} mi`, set.length > 1 && (from === to ? from : `${from}–${to}`), set.length > 1 && `${fmt(fields.size)} airports`].filter(Boolean).join(' · ')
+  return [set.length === 1 ? legDate(first) : `${fmt(set.length)} legs`, `${fmt(miles)} mi`, set.length > 1 && (from === to ? from : `${from}–${to}`), set.length > 1 && !compact && `${fmt(fields.size)} airports`].filter(Boolean).join(' · ')
 }
 
 function titleOf(id: string, set: readonly number[]) {
@@ -41,19 +41,19 @@ function titleOf(id: string, set: readonly number[]) {
 
 /**
  * What's selected, over the globe once it has flown there: its name, its numbers, and Replay (the set draws itself
- * again in order), Copy link and Clear. Desktop: the stage's bottom-left. Phones: just above the tab bar.
+ * again in order), Copy link and Clear, at the foot of the globe's stage. Desktop only.
  */
 export function SelectionCard({ layout, width }: { layout: Layout; width: number }) {
   const selection = useStory((st) => st.selection)
   const tab = useStory((st) => st.tab)
-  const sheet = useStory((st) => st.sheet)
   const group = useRef<Group>(null)
   const [copied, setCopied] = useState(false)
   useEffect(() => setCopied(false), [selection])
   useFrame(() => {
     if (group.current) group.current.visible = atEnd()
   })
-  if (!selection || !tab || (sheet && layout.phone) || !selection.legs.length) return null
+  // Phones skip it: the pinned globe is too small to share, and the lit row in the list already says what's selected.
+  if (!selection || !tab || layout.phone || !selection.legs.length) return null
 
   const s = layout.scale
   const pad = space.l * s
@@ -85,7 +85,7 @@ export function SelectionCard({ layout, width }: { layout: Layout; width: number
         </Label>
       )}
       <Label x={x + pad} y={top + (detail ? line('bodyS', s) : 0)} role="monoData" s={s} color={ui.inkDim} width={inner} nowrap>
-        {summary(selection.legs)}
+        {summary(selection.legs, layout.phone)}
       </Label>
       {pills.map((p, i) => (
         <Pill

@@ -97,17 +97,9 @@ export function layoutPills(items: string[], width: number, s: number, p: PillSi
   return { placed, height: (row + 1) * h + row * gap }
 }
 
-const noRaycast = () => null
-
-/** A row's share of the top row, as a hairline bar along its foot (types, aircraft, airlines). */
-function ShareBar({ x, y, width, s, color }: { x: number; y: number; width: number; s: number; color: typeof ui.ink }) {
-  const h = 1.5 * s
-  return (
-    <mesh position={[x + width / 2, -(y + h / 2), 0.2]} raycast={noRaycast}>
-      <planeGeometry args={[Math.max(width, 1), h]} />
-      <meshBasicMaterial color={color} transparent opacity={0.7} depthTest={false} depthWrite={false} />
-    </mesh>
-  )
+/** A row's share of the top row, as a faint bar behind it (types, aircraft, airlines): the list reads as a chart. */
+function ShareBar({ x, y, width, height, radius, faded }: { x: number; y: number; width: number; height: number; radius: number; faded: boolean }) {
+  return <Glass x={x} y={y} width={Math.max(width, radius * 2)} height={height} radius={radius} glow={0} fill={faded ? 0.18 : 0.35} color={ui.chip} />
 }
 
 export const rowHeight = (detail: boolean, s: number) => (detail ? size.rowDetail : size.row) * s
@@ -125,6 +117,7 @@ export function RankRow({ y, width, s, rank, label, detail, count, share, faded 
   const labelX = size.rank * s
   return (
     <group>
+      {share !== undefined && !lit && <ShareBar x={labelX - space.s * s} y={y + space.xs * s / 2} width={(width - labelX + 2 * space.s * s) * share} height={h - space.xs * s} radius={space.s * s} faded={faded} />}
       {lit && <Glass x={-space.s * s} y={y} width={width + 2 * space.s * s} height={h} radius={space.s * s} glow={0} fill={0.7} color={ui.chip} />}
       <Label x={0} y={top + mono} role="monoData" s={s} color={lit ? ui.ink : ui.inkFaint}>
         {String(rank).padStart(2, '0')}
@@ -140,7 +133,6 @@ export function RankRow({ y, width, s, rank, label, detail, count, share, faded 
       <Label x={width} y={top + mono} role="monoData" s={s} color={lit ? ui.ink : ui.inkDim} align="right">
         {count}
       </Label>
-      {share !== undefined && <ShareBar x={labelX} y={y + h - 2 * s} width={(width - labelX) * share} s={s} color={lit ? ui.ink : faded ? ui.inkFaint : ui.inkDim} />}
       {events && <Hit x={-space.s * s} y={y} width={width + 2 * space.s * s} height={h} {...events} />}
     </group>
   )
@@ -158,7 +150,7 @@ const shown = (o: Object3D | null) => {
 
 /**
  * A number that counts up from zero each time its card comes on screen, then holds. Anything that isn't a plain
- * number ("1965–2025") is shown as is.
+ * number ("1965–2026") is shown as is.
  */
 export function CountUp({ value, ...label }: Omit<LabelProps, 'children'> & { value: string }) {
   const ref = useRef<Mesh>(null)

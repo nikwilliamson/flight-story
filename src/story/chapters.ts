@@ -139,6 +139,8 @@ function planes(label: string, ids: number[]): Module {
 }
 
 const first = legs[0]
+/** The log's span, so the copy moves on as legs are added. */
+const SPAN = `${first.sort.slice(0, 4)}–${legs[legs.length - 1].sort.slice(0, 4)}`
 const longestLeg = legs[facts.longest[0].id - 1]
 const hopper = facts.busiestDay.legs
 const hopperTails = new Map<string, number>()
@@ -172,8 +174,8 @@ const RANGES = {
 export const CHAPTERS: Chapter[] = [
   {
     id: 'opening',
-    label: '1965–2025',
-    eyebrow: '1965–2025',
+    label: SPAN,
+    eyebrow: SPAN,
     title: "Steve's journey to 1,000,000 and more",
     body: `Sixty years of flying, logged by hand, one row per leg. Steve has gone around the Earth ${fmt(facts.laps)} times, or to the Moon and back ${fmt(facts.moonTrips, 1)} times. Scroll to fly them in order.`,
     modules: [{ kind: 'stats', label: 'Totals', items: [['Legs', fmt(facts.legs)], ['Miles', fmt(facts.miles)], ['Airports', fmt(facts.airports)], ['Countries', fmt(facts.countries)]] }],
@@ -373,7 +375,7 @@ export const CHAPTERS: Chapter[] = [
   {
     id: 'stillGoing',
     label: '2015',
-    eyebrow: '2015–2025',
+    eyebrow: `2015–${SPAN.slice(-4)}`,
     title: 'Still going',
     body: `The pace eased after 2015 but never stopped. The last logged flight is ${airports[last.from].city} to ${airports[last.to].city} in ${legDate(last).replace(/^\d+ /, '')}.`,
     modules: [chapterStats([1317, legs.length])],
@@ -383,7 +385,7 @@ export const CHAPTERS: Chapter[] = [
   {
     id: 'gone',
     label: 'Gone',
-    eyebrow: '1965–2025',
+    eyebrow: SPAN,
     title: 'Gone now',
     body: `${fmt(defunctIds.length)} legs were on airlines that no longer exist: Eastern, Pan Am, TWA, Braniff, Northwest, Continental, US Airways, AirTran and more. Some airports went too.`,
     modules: [

@@ -1,6 +1,6 @@
 # Steve's journey to 1,000,000 and more
 
-Sixty years of Steve's flying (1,547 legs, 1965–2025) as one three.js scene: a scroll story that ends in an explorable globe.
+Sixty years of Steve's flying (1,557 legs, 1965–2026) as one three.js scene: a scroll story that ends in an explorable globe.
 Live at https://nikwilliamson.github.io/flight-story/
 
 ## Develop
