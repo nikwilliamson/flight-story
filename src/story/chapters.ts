@@ -1,3 +1,4 @@
+import { HOME_PLACES } from '../content/homes'
 import { airports, legs } from '../data'
 import { facts, fmt, span } from '../data/facts'
 import { airlineGroups, groups, planeGroups } from '../data/indexes'
@@ -97,7 +98,8 @@ function route(range: [number, number]): string[] {
 function homes(range: [number, number]): string[] {
   const out: string[] = []
   for (const leg of legsOf(range)) {
-    const c = `${airports[leg.home].city}`
+    const a = airports[leg.home]
+    const c = HOME_PLACES[a.code]?.[0] ?? a.city
     if (out.at(-1) !== c) out.push(c)
   }
   return out
@@ -211,7 +213,7 @@ export const CHAPTERS: Chapter[] = [
     label: '1973',
     eyebrow: '1973–1981',
     title: 'Across the Atlantic',
-    body: 'March 1973: Heathrow to New York JFK for the first time. Over the next nine years home moved between London, New York and Boston, and the Atlantic turned into a commute.',
+    body: 'March 1973: Heathrow to New York JFK for the first time. Over the next eight years home moved from London to Connecticut, then to Boston, and the Atlantic turned into a commute.',
     modules: [{ kind: 'chips', label: 'Home base', items: homes(RANGES.atlantic) }],
     shot: SHOTS.atlantic,
     range: RANGES.atlantic,
@@ -221,7 +223,7 @@ export const CHAPTERS: Chapter[] = [
     label: '1982',
     eyebrow: '1982–1989',
     title: 'Florida',
-    body: 'Home became Fort Lauderdale in 1982 and Orlando in 1988, where it has stayed. Many 1980s dates are approximate, so Steve went back to old airline timetables and wrote down his reasoning.',
+    body: 'Home became Fort Lauderdale in 1981 and Orlando in 1988, where it has stayed apart from the Osaka years. Many 1980s dates are approximate, so Steve went back to old airline timetables and wrote down his reasoning.',
     modules: [precision(RANGES.florida)],
     shot: SHOTS.florida,
     range: RANGES.florida,

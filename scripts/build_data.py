@@ -62,17 +62,19 @@ def clean(v):
     s = str(v).strip()
     return s or None
 
-# Home airport per leg: most-used airport in a 5-year window, with known moves pinned by ID:
-# the 1988 FLL -> MCO move, and the Osaka years (Universal Studios Japan, Nik 2026-10-04): home is Osaka (KIX) from
-# the move out, SFO -> KIX on 2000-04-07 (ID 408), through the move back on 2002-07-01 (IDs 599-602, back in MCO
-# on 602). Those legs stay out of the window so they don't leak into the years either side.
-OSAKA = range(408, 602)
-yr = f["Sort Date"].dt.year
-home_by_year = {}
-for y in range(int(yr.min()), int(yr.max()) + 1):
-    w = f[(yr >= y - 2) & (yr <= y + 2) & ~f["ID"].isin(OSAKA)]
-    s = pd.concat([w["From Key"], w["To Key"]]).dropna()
-    home_by_year[y] = s.value_counts().index[0] if len(s) else None
+# Home airport per leg, from Nik (2026-10-05): London, then Connecticut, then Boston, then Fort Lauderdale, then
+# Orlando, then Osaka (Universal Studios Japan), then Orlando again. Each stretch starts with the leg that moved him
+# (the move-out flight counts as the new home), dated from the log:
+#   London 1965-; Connecticut from ID 21 (LHR -> JFK, 1973; he flew from JFK); Boston from ID 27 (Dec 1976, the first
+#   leg from BOS); Fort Lauderdale from ID 45 (Jul 1981); Orlando from ID 124 (Sep 1988); Osaka from ID 408
+#   (SFO -> KIX, 2000-04-07; SFO was only the connection); Orlando again from ID 602 (2002-07-01).
+# The two middle boundaries (Boston, Fort Lauderdale) are read off the log, not given by Nik.
+HOMES = [(1, "LHR"), (21, "JFK"), (27, "BOS"), (45, "FLL"), (124, "MCO"), (408, "KIX"), (602, "MCO")]
+
+
+def home_of(leg_id):
+    return next(code for first, code in reversed(HOMES) if leg_id >= first)
+
 
 legs = []
 prev_sort, prev_exact = None, False
@@ -99,7 +101,7 @@ for i, r in f.iterrows():
     if prev_sort is not None and sort < prev_sort and r["Date Precision"] == "Exact" and prev_exact:
         issues.append(f"ID {r.ID}: date {sort.date()} is earlier than the leg before it (ID order wins)")
     prev_sort, prev_exact = sort, r["Date Precision"] == "Exact"
-    home_key = "KIX" if r.ID in OSAKA else "FLL" if (r.ID <= 123 and sort.year >= 1982) else home_by_year[sort.year]
+    home_key = home_of(int(r.ID))
     legs.append({
         "id": int(r.ID),
         "date": None if pd.isna(r["Date"]) else pd.Timestamp(r["Date"]).date().isoformat(),

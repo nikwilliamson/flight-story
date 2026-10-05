@@ -117,8 +117,8 @@ export function homesHeight(s: number) {
 }
 
 /**
- * Where he flew from, on a line from the move to Fort Lauderdale to now: each home a stretch of the bar, named above
- * where there's room, lighting the legs flown from it. The current home is in the accent, as its ring on the globe.
+ * Where he lived, on a line from 1965 to now: each home a stretch of the bar, tagged above where there's room,
+ * lighting the legs flown from it. The current home is in the accent, as its ring on the globe.
  */
 export function HomesTimeline({ y, width, s, label }: { y: number; width: number; s: number; label: string }) {
   const { hovered, on } = useRowEvents()
@@ -138,7 +138,7 @@ export function HomesTimeline({ y, width, s, label }: { y: number; width: number
         const lit = hovered === h.id || selected === h.id
         const current = k === HOMES.length - 1
         const color = lit ? ui.ink : current ? ui.accent : ui.inkDim
-        const code = h.label.split(' · ')[0]
+        const code = h.short
         return (
           <group key={h.id}>
             {w >= textWidth(code, 'monoLabel', s) + space.xs * s && (

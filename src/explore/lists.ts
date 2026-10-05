@@ -1,6 +1,7 @@
 import { airports, legs } from '../data'
 import { airlineGroups, airportGroups, familyGroups, planeGroups, tripGroups } from '../data/indexes'
 import { tripName } from '../data/tripNames'
+import { HOME_PLACES } from '../content/homes'
 
 /** One row of a tab's list: what it lights on hover and frames on click is `legs` (0-based leg indices). */
 export interface ListRow {
@@ -105,6 +106,8 @@ export const AIRPORT_ROWS = new Map(airportGroups.map((g, k) => [Number(g.key), 
 
 /** A stretch of the log flown from one home airport. */
 export interface HomeRow extends ListRow {
+  /** The bar's tag (LON, CT, BOS…). */
+  short: string
   /** Years as decimals, for laying the stretch out on a timeline. */
   from: number
   to: number
@@ -112,27 +115,22 @@ export interface HomeRow extends ListRow {
 
 const yearOf = (sort: string) => Number(sort.slice(0, 4)) + (sort.length >= 7 ? (Number(sort.slice(5, 7)) - 1) / 12 : 0)
 
-/**
- * Where he flew from, as stretches of the log. Only from the move to Fort Lauderdale on: the build derives earlier
- * homes from each year's busiest airport, which is a guess, not something to show as fact.
- */
+/** Where he lived, as stretches of the log (homes and moves are Nik's, pinned in build_data.py). */
 export const HOMES: HomeRow[] = (() => {
-  const start = legs.findIndex((l) => l.home >= 0 && airports[l.home].code === 'FLL')
   const out: HomeRow[] = []
-  for (let i = Math.max(0, start); i < legs.length; i++) {
-    const l = legs[i]
+  legs.forEach((l, i) => {
     const last = out.at(-1)
     if (last && l.home === legs[last.legs[0]].home) (last.legs as number[]).push(i)
     else if (l.home >= 0) {
       const a = airports[l.home]
-      out.push({ id: `home-${slug(a.code)}-${l.sort.slice(0, 4)}`, label: `${a.code} · ${a.city}`, count: 0, legs: [i], from: yearOf(l.sort), to: 0 })
+      const [place, tag] = HOME_PLACES[a.code] ?? [a.city, a.code]
+      out.push({ id: `home-${slug(a.code)}-${l.sort.slice(0, 4)}`, label: place, short: tag, count: 0, legs: [i], from: yearOf(l.sort), to: 0 })
     }
-  }
+  })
   out.forEach((h, k) => {
     h.count = h.legs.length
     h.to = out[k + 1]?.from ?? yearOf(legs[legs.length - 1].sort) + 1
-    const end = k + 1 < out.length ? String(Math.floor(h.to)) : 'now'
-    h.detail = `${Math.floor(h.from)}–${end}`
+    h.detail = `${Math.floor(h.from)}–${k + 1 < out.length ? Math.floor(h.to) : 'now'}`
   })
   return out
 })()
