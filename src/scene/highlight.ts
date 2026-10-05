@@ -6,8 +6,8 @@ import { ease } from '../motion'
 
 /** Highlight changes fade, never snap (Nik); the rate is in pacing.ts. */
 const WIDTH = 256
-/** How far unlit legs dim while anything is lit (wireframe uDim). */
-export const DIM = 0.6
+/** How far unlit legs dim below the history look while anything is lit (wireframe uDim). */
+export const DIM = 0.45
 
 const height = Math.ceil(legs.length / WIDTH)
 const pixels = new Uint8Array(WIDTH * height)

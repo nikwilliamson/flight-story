@@ -18,6 +18,8 @@ export const PACING = {
    * 1.1× the scroll per leg and a 300-leg one 1.5×. Lower it to stretch big chapters more.
    */
   slowAfter: 600,
+  /** The opening card: how long it holds before the first chapter's card comes up. 0 = scrolling moves it at once. */
+  opening: 0,
   /** Asides that hold the lines where they are (joyrides, airframes, later lives, gone, all). */
   hold: 1,
   /** The skydive: its footage scrubs over this much scroll. */
@@ -47,6 +49,8 @@ export const PACING = {
 
 /** Screens of scroll a chapter runs over. */
 export function scrollOf(ch: Chapter) {
+  // The opening draws nothing, so holding it only made the first scroll feel dead (Nik).
+  if (ch.id === 'opening') return PACING.opening
   if (ch.jump) return PACING.jump
   if (ch.scene) return PACING[ch.scene]
   if (!ch.range || ch.hold) return PACING.hold
