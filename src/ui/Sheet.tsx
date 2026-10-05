@@ -60,6 +60,7 @@ const matches = (hay: string, query: string) => query.split(/\s+/).every((w) => 
  */
 export function Sheet() {
   const sheet = useStory((s) => s.sheet)
+  const ready = useStory((s) => s.ready)
   const selected = useStory((s) => s.selection?.id)
   const [query, setQuery] = useState('')
   const [newestFirst, setNewestFirst] = useState(true)
@@ -76,7 +77,7 @@ export function Sheet() {
     return newestFirst ? found.reverse() : found
   }, [sheet, q, newestFirst])
 
-  if (!sheet) return null
+  if (!sheet || !ready) return null
   const top = layout.phone ? layout.stage.height + 8 : tabBarBottom(layout) + 16
   const style: CSSProperties = layout.phone
     ? { left: 12, right: 12, top, bottom: 12 }

@@ -4,7 +4,7 @@ import type { Group } from 'three'
 import { CHAPTERS } from '../story/chapters'
 import { scrollOf } from '../story/pacing'
 import { cardTop, planScroll } from '../story/scrollPlan'
-import { scroll } from '../story/scrollState'
+import { setPlan } from '../story/scrollState'
 import { tabBarBottom, type Layout } from './layout'
 import { StoryCard } from './StoryCard'
 import { useStory } from '../state/store'
@@ -32,7 +32,7 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
   }, [heights, viewport, layout])
 
   useEffect(() => {
-    scroll.plan = plan
+    setPlan(plan)
     const spacer = document.getElementById('scroll-spacer')
     if (spacer && plan) spacer.style.height = `${Math.ceil(plan.length + viewport)}px`
   }, [plan, viewport])

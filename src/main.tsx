@@ -3,13 +3,17 @@ import { createRoot } from 'react-dom/client'
 import { Globe } from './scene/Globe'
 import { Sheet } from './ui/Sheet'
 import { Tabs } from './ui/Tabs'
+import { Fallback, SceneBoundary } from './ui/Fallback'
 import './styles.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <main className="app">
-      <Globe />
+      <SceneBoundary>
+        <Globe />
+      </SceneBoundary>
     </main>
+    <Fallback />
     <Tabs />
     <Sheet />
     {/* Empty: gives the page its scroll length. The story reads window.scrollY; everything visible is in the canvas. */}

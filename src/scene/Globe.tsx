@@ -1,7 +1,8 @@
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing'
 import { PerformanceMonitor } from '@react-three/drei'
+import { hashParams } from '../hash'
 import { palette } from '../theme'
 import { Surface } from './Surface'
 import { Outlines } from './Outlines'
@@ -17,6 +18,7 @@ import { scroll } from '../story/scrollState'
 import { DebugHash } from '../story/debug'
 import { ScrollDriver } from '../story/ScrollDriver'
 import { TabDriver } from '../explore/TabDriver'
+import { StoryTick } from '../story/StoryTick'
 import { useStory } from '../state/store'
 import { UiLayer } from '../ui/UiLayer'
 import { Moon } from './Moon'
@@ -27,15 +29,9 @@ import { JumpLayer } from './JumpLayer'
 
 /** How much of the stylized glow stays under the physical layer: the night-side rim and the wide halo. */
 const CLASSIC_GAIN = 0.55
-const debug = typeof location !== 'undefined' ? new URLSearchParams(location.hash.slice(1)) : new URLSearchParams()
 
-const useFullEffects = () => {
-  const [full, setFull] = useState(true)
-  useEffect(() => {
-    setFull(!window.matchMedia('(pointer: coarse)').matches)
-  }, [])
-  return full
-}
+/** Bloom and vignette on fine pointers only. Decided before the first render, so phones never build the composer. */
+const fullEffects = typeof matchMedia !== 'undefined' && !matchMedia('(pointer: coarse)').matches
 
 /**
  * Draws the globe when postprocessing is off. Any useFrame with a priority takes rendering over from R3F, and the
@@ -53,18 +49,24 @@ function PlainRender() {
 const startDpr = () => Math.min(window.devicePixelRatio, window.matchMedia('(pointer: coarse)').matches ? 1.5 : 2)
 
 export function Globe() {
-  const fullEffects = useFullEffects()
   const [dpr, setDpr] = useState(startDpr)
   return (
     <Canvas
       className="globe"
       dpr={dpr}
+      // No tone mapping anywhere: the composer turns it off on desktop, so phones (no composer) match by leaving it off too.
+      flat
       camera={{ fov: 34, near: 0.05, far: 1000 }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       onCreated={(state) => {
         state.gl.setClearColor(palette.space, 1)
+        // iOS drops WebGL contexts under memory pressure; the scene can't rebuild itself, so offer a reload.
+        state.gl.domElement.addEventListener('webglcontextlost', (e) => {
+          e.preventDefault()
+          useStory.getState().setFailed('lost')
+        })
         // Debug: #probe exposes the camera for automated motion checks.
-        if (debug.has('probe')) Object.assign(window, { __camera: state.camera, __timeline: timeline, __scroll: scroll, __cam: storyCamera, __story: useStory })
+        if (hashParams.has('probe')) Object.assign(window, { __camera: state.camera, __timeline: timeline, __scroll: scroll, __cam: storyCamera, __story: useStory })
       }}
     >
       {/* Holds the frame budget: drops the resolution when frames run long, raises it back when there's headroom. */}
@@ -77,8 +79,8 @@ export function Globe() {
       <Backdrop />
       <Stars />
       {/* #classic shows the stylized glow alone, for comparison with the physical scattering. */}
-      <Earth gain={debug.has('classic') ? 1 : CLASSIC_GAIN} />
-      {!debug.has('classic') && <Scattering />}
+      <Earth gain={hashParams.has('classic') ? 1 : CLASSIC_GAIN} />
+      {!hashParams.has('classic') && <Scattering />}
       <Moon />
       {/* Everything that sits on the terrain waits for the elevation texture. */}
       <Suspense fallback={null}>
@@ -96,11 +98,11 @@ export function Globe() {
       <DistanceCamera />
       <DebugHash />
       <ScrollDriver />
-      {/* After the scroll driver, so the tabs' highlight and fly-to win at the end of the story. */}
       <TabDriver />
-      {!debug.has('noui') && <UiLayer />}
-      {!(fullEffects && !debug.has('raw')) && <PlainRender />}
-      {fullEffects && !debug.has('raw') && (
+      <StoryTick />
+      {!hashParams.has('noui') && <UiLayer />}
+      {!(fullEffects && !hashParams.has('raw')) && <PlainRender />}
+      {fullEffects && !hashParams.has('raw') && (
         <EffectComposer multisampling={0}>
           <Bloom mipmapBlur intensity={0.8} luminanceThreshold={0.72} luminanceSmoothing={0.25} radius={0.65} />
           <Vignette offset={0.32} darkness={0.72} />

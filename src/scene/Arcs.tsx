@@ -7,7 +7,7 @@ import { palette } from '../theme'
 import { useTerrain, type TerrainRadius } from './terrain'
 import { FLIGHT, legStart, STORY_END, timeline } from '../story/timeline'
 import { distance } from '../story/distance'
-import { DIM, highlight, stepHighlight } from './highlight'
+import { DIM, highlight } from './highlight'
 
 /** Matches aKind in the shader. */
 const enum Kind {
@@ -263,8 +263,7 @@ export function Arcs() {
   const material = useMemo(makeMaterial, [])
   const { size, viewport } = useThree()
   const mesh = useRef<Mesh>(null)
-  useFrame(({ camera }, delta) => {
-    stepHighlight(Math.min(delta, 0.1))
+  useFrame(({ camera }) => {
     material.uniforms.uDim.value = highlight.dim
     // Faded out and skipped entirely while the Moon shot has the screen.
     material.uniforms.uShow.value = distance.routes

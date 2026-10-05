@@ -28,6 +28,12 @@ export type TabId = 'explore' | 'trips' | 'airports' | 'planes' | 'airlines' | '
 export type SheetId = 'trips' | 'airports' | 'families' | 'planes' | 'airlines' | 'log'
 
 interface State {
+  /** The loader has started to lift: the HTML chrome (tabs, sheet) waits for it so it never sits on the cover. */
+  ready: boolean
+  /** The scene can't draw: it threw, or the browser took the WebGL context away. */
+  failed: 'error' | 'lost' | null
+  setReady: () => void
+  setFailed: (failed: 'error' | 'lost') => void
   shot: Shot
   stage: Stage | null
   /** Leg indices (id - 1) lit in white; everything else dims. Empty = no highlight. */
@@ -52,6 +58,10 @@ interface State {
 
 /** Scroll, tabs and debug write here; the scene reads it, usually straight from its frame loop via getState(). */
 export const useStory = create<State>()((set) => ({
+  ready: false,
+  failed: null,
+  setReady: () => set({ ready: true }),
+  setFailed: (failed) => set({ failed }),
   shot: { lon: -40, lat: 28, zoom: 1, spin: true },
   stage: null,
   highlight: [],

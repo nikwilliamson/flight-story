@@ -20,6 +20,7 @@ const BAR: { id: (typeof TABS)[number]['id'] | null; label: string }[] = [{ id: 
  */
 export function Tabs() {
   const tab = useStory((s) => s.tab)
+  const ready = useStory((s) => s.ready)
   const { width, height } = useViewport()
   const layout = layoutFor(width, height)
   const s = layout.scale
@@ -29,6 +30,8 @@ export function Tabs() {
   const k = s * Math.min(1, room / natural)
   const style = { top: tabBarTop(layout), '--tab-h': `${TAB_HEIGHT * s}px`, '--tab-k': k } as CSSProperties
 
+  // Not over the loading cover: the bar slides in as it lifts.
+  if (!ready) return null
   return (
     <nav className="tabs" style={style} aria-label="Views">
       {BAR.map((t) => {

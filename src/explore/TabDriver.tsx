@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
-import { useFrame } from '@react-three/fiber'
 import { legs } from '../data'
 import { settledOn } from '../scene/camera/StoryCamera'
 import { useStory } from '../state/store'
-import { scroll } from '../story/scrollState'
+import { planReady } from '../story/scrollState'
+import { shareIdOf } from '../hash'
 import { atEnd, clearSelection, flight, HOLD_S, select, TABS, tabOf } from './explore'
 import { ROWS, type ListRow } from './lists'
 
@@ -25,58 +25,64 @@ function rowFor(id: string): ListRow | undefined {
  */
 export function TabDriver() {
   useEffect(() => {
-    const id = location.hash.slice(1).split('&')[0].toLowerCase()
-    const tab = TABS.find((t) => t.id === id)?.id
-    const row = rowFor(id)
-    let timer = 0
-    if (tab || row) {
-      // Wait for the story to be laid out, then open the tab over the journey's start.
-      timer = window.setInterval(() => {
-        if (!scroll.plan) return
-        clearInterval(timer)
+    // A share link opens its tab over the journey's start once the story is laid out, and so does one pasted later.
+    let live = true
+    const open = (hash: string) => {
+      const id = shareIdOf(hash)
+      const tab = TABS.find((t) => t.id === id)?.id
+      const row = rowFor(id)
+      if (!tab && !row) return
+      planReady.then(() => {
+        if (!live) return
         useStory.getState().setTab(tab ?? tabOf(id))
         pending = row ?? null
-      }, 100)
+      })
     }
+    open(location.hash)
+    const changed = () => open(location.hash)
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       const store = useStory.getState()
       if (store.sheet) store.setSheet(null)
       else clearSelection()
     }
+    window.addEventListener('hashchange', changed)
     window.addEventListener('keydown', key)
     return () => {
-      clearInterval(timer)
+      live = false
+      window.removeEventListener('hashchange', changed)
       window.removeEventListener('keydown', key)
     }
   }, [])
 
-  useFrame((_, delta) => {
-    // The journey holds still under an open tab: the page doesn't scroll until Journey is back.
-    const locked = useStory.getState().tab !== null ? 'hidden' : ''
-    if (document.documentElement.style.overflow !== locked) document.documentElement.style.overflow = locked
-    if (!atEnd()) return
-    if (pending) {
-      select(pending)
-      pending = null
-    }
-    const store = useStory.getState()
-    const lit = store.hover ?? store.selection?.legs ?? NONE
-    if (store.highlight !== lit) store.setHighlight(lit)
-
-    // Fly-to: hold a beat once the camera is there, then hand the globe back to the reader.
-    if (!flight.shot) return
-    if (store.shot !== flight.shot) {
-      flight.shot = null
-      return
-    }
-    flight.held = settledOn(flight.shot) ? flight.held + Math.min(delta, 0.1) : 0
-    if (flight.held >= HOLD_S) {
-      store.setInteractive(true)
-      flight.shot = null
-    }
-  })
   return null
+}
+
+/** One frame of the tabs (what is lit, the fly-to's hold), run by StoryTick after the story. */
+export function stepTabs(delta: number) {
+  // The journey holds still under an open tab: the page doesn't scroll until Journey is back.
+  const locked = useStory.getState().tab !== null ? 'hidden' : ''
+  if (document.documentElement.style.overflow !== locked) document.documentElement.style.overflow = locked
+  if (!atEnd()) return
+  if (pending) {
+    select(pending)
+    pending = null
+  }
+  const store = useStory.getState()
+  const lit = store.hover ?? store.selection?.legs ?? NONE
+  if (store.highlight !== lit) store.setHighlight(lit)
+
+  // Fly-to: hold a beat once the camera is there, then hand the globe back to the reader.
+  if (!flight.shot) return
+  if (store.shot !== flight.shot) {
+    flight.shot = null
+    return
+  }
+  flight.held = settledOn(flight.shot) ? flight.held + Math.min(delta, 0.1) : 0
+  if (flight.held >= HOLD_S) {
+    store.setInteractive(true)
+    flight.shot = null
+  }
 }
 
 let pending: ListRow | null = null

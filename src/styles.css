@@ -100,3 +100,18 @@ html::-webkit-scrollbar { display: none; }
 .tab:focus-visible { outline: 1px solid #4cc9ff; outline-offset: 2px; }
 @keyframes tabs-in { from { opacity: 0; transform: translateY(-24px); } }
 @media (prefers-reduced-motion: reduce) { .tabs { animation: none; } }
+
+/* When the scene can't draw: one line and a reload, centred on the empty page. */
+.fallback {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+  color: #8ea3c2;
+  font: 16px/1.45 'Story Body', system-ui, sans-serif;
+  background: var(--space);
+}
+.fallback p { margin: 0; }

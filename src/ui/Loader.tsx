@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useProgress } from '@react-three/drei'
 import type { Group, Mesh, MeshBasicMaterial } from 'three'
 import { reducedMotion } from '../motion'
+import { useStory } from '../state/store'
 import { palette } from '../theme'
 import { Label } from './Label'
 import { fonts } from './fonts'
@@ -26,14 +27,15 @@ export function Loader() {
   const fill = useRef<Mesh>(null)
   const group = useRef<Group>(null)
   const marks = useRef<Group>(null)
-  const state = useRef({ shown: 0, gone: 0, waited: 0 }).current
+  const state = useRef({ shown: 0, gone: 0, started: performance.now() }).current
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.1)
     state.shown += (progress / 100 - state.shown) * (1 - Math.exp(-dt * 8))
-    state.waited += dt
-    // Done when the loads settle; the safety net lifts it anyway if the loading manager never reports.
-    const done = (!active && progress >= 100 && state.shown > 0.98) || state.waited > SAFETY
+    // Done when the loads settle; the safety net (wall clock, so a slow GPU's long frames don't stretch it) lifts it
+    // anyway if the loading manager never reports.
+    const done = (!active && progress >= 100 && state.shown > 0.98) || performance.now() - state.started > SAFETY * 1000
+    if ((done || state.gone > 0) && state.gone === 0) useStory.getState().setReady()
     if (done || state.gone > 0) state.gone = reducedMotion() ? 1 : Math.min(1, state.gone + dt / LIFT)
     const g = group.current
     if (!g) return
@@ -46,6 +48,7 @@ export function Loader() {
   })
 
   const y = height / 2
+  const titleSize = width < 600 ? 26 : 28
   return (
     <group ref={group}>
       <mesh ref={cover} position={[width / 2, -height / 2, 0]} raycast={noRaycast}>
@@ -53,7 +56,8 @@ export function Loader() {
         <meshBasicMaterial color={palette.space} transparent depthTest={false} depthWrite={false} />
       </mesh>
       <group ref={marks}>
-        <Label x={width / 2} y={y - 44} size={Math.min(28, width / 16)} color={ui.ink} font={fonts.display} align="center">
+        {/* Narrow screens wrap the title onto two lines, raised by one so it still clears the bar. */}
+        <Label x={width / 2} y={y - 44 - (width < 600 ? titleSize * 1.1 : 0)} size={titleSize} width={width - 48} lineHeight={1.1} color={ui.ink} font={fonts.display} align="center">
           Steve's journey to 1,000,000 and more
         </Label>
         <mesh position={[width / 2, -(y + 6), 1]} raycast={noRaycast}>
