@@ -39,6 +39,7 @@ KM_PER_MILE = 1.609344
 class Flight:
     fm_no: int | None  # FlightMemory's own running leg number, 1 = first flight
     date: date | None
+    date_text: str  # the date cell as shown, for partial dates that don't parse
     dep_time: str
     arr_time: str
     from_code: str
@@ -67,6 +68,7 @@ class Flight:
 COLUMNS = {
     "fm_no": "FM #",
     "date": "Date",
+    "date_text": "FM Date",
     "from_name": "From",
     "from_code": "From Code",
     "to_name": "To",
@@ -145,8 +147,6 @@ def fetch_pages(username: str, password: str, headed: bool) -> list[str]:
             seen |= numbers
             pages.append(html)
             print(f"page {len(pages)}: {len(numbers)} flights", file=sys.stderr)
-            if len(numbers) < PAGE_SIZE:
-                break
         if not pages:
             print("warning: FLIGHTDATA had no flight rows", file=sys.stderr)
             pages.append(driver.page_source)
@@ -170,11 +170,14 @@ def cells(tr: Tag) -> list[Tag]:
 
 
 def flight_rows(html: str) -> list[Tag]:
-    """Flight list rows: 10+ cells with a date in the second one."""
+    """Flight list rows: 10+ cells, the first being the leg number.
+
+    Not keyed on the date: older legs can carry partial dates (month or year only).
+    """
     soup = BeautifulSoup(html, "html.parser")
     root = soup.select_one(".container") or soup
     return [tr for tr in root.find_all("tr")
-            if len(c := cells(tr)) >= 10 and DATE.search(c[1].get_text(" ", strip=True))]
+            if len(c := cells(tr)) >= 10 and c[0].get_text(strip=True).isdigit()]
 
 
 def count_rows(html: str) -> int:
@@ -237,12 +240,10 @@ def parse_row(tr: Tag, day_first: bool) -> Flight:
     raw = " | ".join(x.get_text(" ", strip=True) for x in c[:10])
     seat, seat_type, cabin, role, reason = parse_seat(c[9])
     edit = tr.find("option", value=EDIT_ID)
-    if d:
-        a, b, year = int(d[1]), int(d[2]), int(d[3])
-        day, month = (a, b) if day_first else (b, a)
     return Flight(
         fm_no=row_number(tr),
-        date=date(year, month, day) if d else None,
+        date=parse_date(d, day_first),
+        date_text=when,
         dep_time=times[0] if times else "",
         arr_time=times[1] if len(times) > 1 else "",
         from_code=c[2].get_text(strip=True),
@@ -266,6 +267,17 @@ def parse_row(tr: Tag, day_first: bool) -> Flight:
         fm_id=EDIT_ID.search(edit["value"])[1] if edit else "",
         raw=raw,
     )
+
+
+def parse_date(m: re.Match | None, day_first: bool) -> date | None:
+    if not m:
+        return None
+    a, b, year = int(m[1]), int(m[2]), int(m[3])
+    day, month = (a, b) if day_first else (b, a)
+    try:
+        return date(year, month, day)
+    except ValueError:  # e.g. 00-00-1985 for an unknown day
+        return None
 
 
 def is_day_first(rows: list[Tag]) -> bool:
