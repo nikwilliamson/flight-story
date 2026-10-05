@@ -142,7 +142,7 @@ for (const id of hopper) if (legs[id - 1].tail) hopperTails.set(legs[id - 1].tai
 const [hopperTail, hopperLandings] = [...hopperTails].sort((a, b) => b[1] - a[1])[0]
 const hopperPlane = groups.plane.get(hopperTail)!
 const mostFlown = planeGroups[0].key === hopperTail && planeGroups[1].count < hopperPlane.count
-const hopperFact = `${hopperLandings === 6 ? 'Six' : fmt(hopperLandings)} of those landings were the same plane, ${hopperTail}. ${mostFlown ? `He flew on it ${hopperPlane.count} times, more than any other plane he ever boarded.` : `He flew on it ${hopperPlane.count} times in all.`}`
+const hopperFact = `${hopperLandings === 6 ? 'Six' : fmt(hopperLandings)} of those landings were the same aircraft, ${hopperTail}. ${mostFlown ? `He flew on it ${hopperPlane.count} times, more than any other aircraft he ever boarded.` : `He flew on it ${hopperPlane.count} times in all.`}`
 const hndItm = facts.topRoutes.find((r) => r.route === 'HND–ITM')?.legs ?? 0
 const last = legs[legs.length - 1]
 const JOYRIDES = [75, 836, 1003, 723, 990, 1385]
@@ -171,7 +171,7 @@ export const CHAPTERS: Chapter[] = [
     label: '1965–2025',
     eyebrow: '1965–2025',
     title: "Steve's journey to 1,000,000 and more",
-    body: `Sixty years of flying, logged by hand, one row per leg. Steve has gone round the Earth ${fmt(facts.laps)} times, or to the Moon and back ${fmt(facts.moonTrips, 1)} times. Scroll to fly them in order.`,
+    body: `Sixty years of flying, logged by hand, one row per leg. Steve has gone around the Earth ${fmt(facts.laps)} times, or to the Moon and back ${fmt(facts.moonTrips, 1)} times. Scroll to fly them in order.`,
     modules: [{ kind: 'stats', label: 'Totals', items: [['Legs', fmt(facts.legs)], ['Miles', fmt(facts.miles)], ['Airports', fmt(facts.airports)], ['Countries', fmt(facts.countries)]] }],
     shot: SHOTS.opening,
   },
@@ -342,11 +342,11 @@ export const CHAPTERS: Chapter[] = [
     id: 'airframes',
     label: 'Airframes',
     eyebrow: 'Aside',
-    title: 'Planes with a past',
-    body: `He flew on at least ${fmt(facts.planes)} different airplanes. A few of them have stories of their own.`,
+    title: 'Aircraft with a past',
+    body: `He flew on at least ${fmt(facts.planes)} different aircraft. A few of them have stories of their own.`,
     modules: [
       planes('Notable airframes', AIRFRAMES),
-      { kind: 'fact', text: `The average plane he flew was ${fmt(facts.averagePlaneAge, 1)} years old. ${facts.newPlaneLegs} of his flights were on planes in their first year.` },
+      { kind: 'fact', text: `The average aircraft he flew on was ${fmt(facts.averagePlaneAge, 1)} years old. ${facts.newPlaneLegs} of his flights were on aircraft in their first year.` },
     ],
     shot: SHOTS.airframes,
     range: RANGES.peak,
@@ -395,7 +395,7 @@ export const CHAPTERS: Chapter[] = [
     title: `${fmt(facts.laps)} times around the Earth`,
     body: `Laid end to end, ${fmt(facts.miles)} miles would wrap the planet ${fmt(facts.laps, 1)} times. Here it is as one line, starting from home in Orlando.`,
     modules: [
-      { kind: 'fact', text: `About ${fmt(facts.airTimeDays)} days in the air. Roughly six months of his life spent aloft.` },
+      { kind: 'fact', text: `About ${fmt(facts.airTimeDays)} days in the air: roughly ${fmt(facts.airTimeDays / 30.44)} months of his life spent aloft.` },
       { kind: 'fact', text: `Light would cover all of it in about ${fmt(facts.lightSeconds)} seconds.` },
     ],
     shot: SHOTS.laps,
@@ -406,7 +406,7 @@ export const CHAPTERS: Chapter[] = [
     label: 'Moon',
     eyebrow: 'How far is that',
     title: `To the Moon and back, almost ${Math.ceil(facts.moonTrips)} times`,
-    body: `Now unwind it. Keep the same line, pull back far enough to see the Moon at its real size and distance, and let the line peel off the Earth. Every lap that comes off becomes part of a figure 8 round the Moon, until it reaches the Moon and back ${fmt(facts.moonTrips, 1)} times.`,
+    body: `Now unwind it. Keep the same line, pull back far enough to see the Moon at its real size and distance, and let the line peel off the Earth. Every lap that comes off becomes part of a figure 8 around the Moon, until it reaches the Moon and back ${fmt(facts.moonTrips, 1)} times.`,
     modules: [{ kind: 'fact', text: `That's still only ${fmt(facts.sunShare * 100)}% of the way to the Sun.` }],
     shot: SHOTS.moon,
     scene: 'moon',
@@ -416,7 +416,7 @@ export const CHAPTERS: Chapter[] = [
     label: 'All',
     eyebrow: 'All of it',
     title: `${fmt(facts.legs)} flights`,
-    body: `${fmt(facts.miles)} miles to ${fmt(facts.airports)} airports in ${fmt(facts.countries)} countries, on ${fmt(facts.airlines)} airlines and at least ${fmt(facts.planes)} different airplanes.`,
+    body: `${fmt(facts.miles)} miles to ${fmt(facts.airports)} airports in ${fmt(facts.countries)} countries, on ${fmt(facts.airlines)} airlines and at least ${fmt(facts.planes)} different aircraft.`,
     modules: [topAirports([1, legs.length], 5, 'Most visited airports')],
     shot: SHOTS.all,
   },

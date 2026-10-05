@@ -10,7 +10,7 @@ export const TABS: { id: TabId; label: string }[] = [
   { id: 'explore', label: 'Explore' },
   { id: 'trips', label: 'Trips' },
   { id: 'airports', label: 'Airports' },
-  { id: 'planes', label: 'Planes' },
+  { id: 'planes', label: 'Aircraft' },
   { id: 'airlines', label: 'Airlines' },
   { id: 'log', label: 'Log' },
 ]

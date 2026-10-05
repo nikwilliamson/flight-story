@@ -10,11 +10,11 @@ export function panelFor(tab: Exclude<TabId, 'log'>, phone: boolean): CardConten
     case 'explore':
       return {
         eyebrow: 'Explore',
-        title: 'The globe, released',
+        title: 'Over to you',
         body: `Drag to spin it, pinch or ctrl-scroll to zoom. Hover anything in these tabs to light its flights, click to fly there, and press Esc to clear.`,
         modules: [
           { kind: 'filters', label: 'Decades', chips: CHIPS.filter((c) => c.id.startsWith('decade')) },
-          { kind: 'filters', label: 'Routes', chips: CHIPS.filter((c) => c.id.startsWith('scope')) },
+          { kind: 'filters', label: 'Domestic and international', chips: CHIPS.filter((c) => c.id.startsWith('scope')) },
           { kind: 'list', label: 'Most visited airports', list: 'airports', top: phone ? 3 : 5 },
         ],
       }
@@ -34,12 +34,12 @@ export function panelFor(tab: Exclude<TabId, 'log'>, phone: boolean): CardConten
       }
     case 'planes':
       return {
-        eyebrow: 'Planes',
-        title: `${fmt(LISTS.planes.rows.length)} airplanes`,
-        body: `Across ${fmt(LISTS.families.rows.length)} families. Hover a family or a plane to light its flights.`,
+        eyebrow: 'Aircraft',
+        title: `${fmt(LISTS.planes.rows.length)} aircraft`,
+        body: `Across ${fmt(LISTS.families.rows.length)} types. Hover a type or an aircraft to light its flights.`,
         modules: [
-          { kind: 'list', label: 'Families', list: 'families', top: phone ? 3 : 5 },
-          { kind: 'list', label: 'Most flown planes', list: 'planes', top: phone ? 3 : 5 },
+          { kind: 'list', label: 'Types', list: 'families', top: phone ? 3 : 5 },
+          { kind: 'list', label: 'Most flown aircraft', list: 'planes', top: phone ? 3 : 5 },
         ],
       }
     case 'airlines':
