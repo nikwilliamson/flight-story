@@ -1,6 +1,7 @@
 """Flight Log.xlsx -> src/data/flights.json plus a validation report.
 
-Reads cached values (openpyxl data_only). Fare and Hotel never leave this script.
+Reads cached values (openpyxl data_only). Fare, Hotel and Notes never leave this script, and a trip purpose leaves it
+only when it is on the shown list (src/content/trip-names.json): the repo and the site are public.
 """
 import json, math, sys, datetime as dt
 from collections import Counter
@@ -8,6 +9,7 @@ import pandas as pd
 
 SRC = sys.argv[1] if len(sys.argv) > 1 else "/mnt/project-files/flight-log/Flight Log.xlsx"
 OUT = "src/data/flights.json"
+SHOWN_PURPOSES = set(json.load(open("src/content/trip-names.json")))
 REPORT = sys.argv[2] if len(sys.argv) > 2 else "validation-report.md"
 
 f = pd.read_excel(SRC, "Flights")
@@ -105,7 +107,8 @@ for i, r in f.iterrows():
         "detail": clean(r["Date Detail"]),
         "precision": r["Date Precision"],
         "from": fi, "to": ti,
-        "fromName": clean(r["From"]), "toName": clean(r["To"]),
+        # Names only for airports the log can't place (the check needs them); known ones are in airports.
+        "fromName": clean(r["From"]) if fi < 0 else None, "toName": clean(r["To"]) if ti < 0 else None,
         "airline": clean(r["Airline"]),
         "airlineName": airline_name.get(str(r["Airline"]), clean(r["Airline"])),
         "flight": clean(r["Flight #"]),
@@ -120,8 +123,7 @@ for i, r in f.iterrows():
         "candidates": cands,
         "trip": int(r["Trip ID"]),
         "home": airport_idx(home_key) if home_key else -1,
-        "purpose": clean(r["Trip / Purpose"]),
-        "notes": clean(r["Notes"]),
+        "purpose": purpose if (purpose := clean(r["Trip / Purpose"])) in SHOWN_PURPOSES else None,
     })
 
 json.dump({"generated": dt.date.today().isoformat(), "airports": airports, "legs": legs},

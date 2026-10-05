@@ -12,7 +12,7 @@ Live at https://nikwilliamson.github.io/flight-story/
 
     npm run data -- "/path/to/Flight Log.xlsx"   # needs pandas + openpyxl
 
-Fare and hotel never leave the script. Notes are kept in the data but never displayed.
+Fare, hotel and Steve's notes never leave the script, and his trip purposes only when they are on the shown list (`src/content/trip-names.json`); `npm run check` fails on anything private. The repo and the site are public.
 
 ## Plane photos
 `public/planes/<TAIL>.webp` plus `public/planes/manifest.json` (file, author, licence and source per tail; tails without a usable photo under `missing`). Openly licensed Wikimedia Commons photos only, so credit the author and licence wherever a photo is shown. After adding flights, run the **Plane photos** workflow (Actions tab) or locally:

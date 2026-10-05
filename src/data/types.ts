@@ -21,6 +21,7 @@ export interface Leg {
   /** Index into airports, or -1 when unknown. */
   from: number
   to: number
+  /** As logged, only where the airport is unknown (from/to = -1). */
   fromName: string | null
   toName: string | null
   airline: string | null
@@ -38,8 +39,8 @@ export interface Leg {
   candidates: number[]
   trip: number
   home: number
+  /** Steve's trip name, only when it is one to show (src/content/trip-names.json). */
   purpose: string | null
-  notes: string | null
 }
 
 export interface FlightData {
