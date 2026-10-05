@@ -3,13 +3,13 @@ import { facts } from '../src/data/facts'
 import { airlineGroups, airportGroups, groups, planeGroups, tripGroups } from '../src/data/indexes'
 import { legs } from '../src/data'
 
-// Snapshot of the workbook as of 2026-10-05 03:18 UTC (10 legs added since the fun-facts thread's 2026-10-04 snapshot). If flights are added these move;
+// Snapshot of the workbook as of 2026-10-05 03:27 UTC (10 legs added since the fun-facts thread's 2026-10-04 snapshot). If flights are added these move;
 // update the expectations alongside the data so a silent change in a rule still fails.
 describe('facts', () => {
   it('matches the fun-facts snapshot', () => {
     expect(facts.legs).toBe(1557)
-    expect(facts.miles).toBe(1_888_850)
-    expect(facts.laps).toBeCloseTo(75.9, 1)
+    expect(facts.miles).toBe(1_887_679)
+    expect(facts.laps).toBeCloseTo(75.8, 1)
     expect(facts.moonTrips).toBeCloseTo(4.0, 1)
     expect(Math.round(facts.lightSeconds)).toBe(10)
     expect(facts.countries).toBe(51)
@@ -22,7 +22,7 @@ describe('facts', () => {
     expect(facts.busiestDay).toEqual({ date: '2011-03-14', legs: [975, 976, 977, 978, 979, 980, 981, 982] })
     expect(facts.equatorCrossings).toBe(20)
     expect(facts.jumbo).toMatchObject({ legs: 119, miles: 342_867 })
-    expect(facts.international.miles).toBe(739_958)
+    expect(facts.international.miles).toBe(738_787)
     expect(facts.hockey).toMatchObject({ legs: 35, miles: 27_513, airports: 33, airlines: 10 })
     expect(facts.osaka).toMatchObject({ legs: 194, miles: 369_812 })
     expect(facts.topAirline).toMatchObject({ key: 'UA', count: 611 })
