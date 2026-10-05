@@ -11,7 +11,8 @@ import { fonts } from './fonts'
  */
 export const ui = {
   ink: new Color('#e6eefb'),
-  inkDim: new Color('#8ea3c2'),
+  inkDim: new Color('#a6b6cf'),
+  /** Rules, tracks and dividers only, never text: too faint to read on glass. */
   inkFaint: new Color('#4f6283'),
   accent: new Color('#ffb54a'),
   domestic: new Color('#4cc9ff'),
@@ -44,7 +45,7 @@ export const type: Record<'displayXL' | 'displayL' | 'displayM' | 'displayS' | '
   body: { font: fonts.body, family: 'Story Body', size: 16, line: 1.45, tracking: 0 },
   bodyS: { font: fonts.body, family: 'Story Body', size: 14, line: 1.4, tracking: 0 },
   monoData: { font: fonts.mono, family: 'Story Mono', size: 12, line: 1.4, tracking: 0 },
-  monoLabel: { font: fonts.mono, family: 'Story Mono', size: 10.5, line: 1.3, tracking: 0.12, upper: true },
+  monoLabel: { font: fonts.mono, family: 'Story Mono', size: 11, line: 1.3, tracking: 0.1, upper: true },
 }
 
 export type Role = keyof typeof type
@@ -55,7 +56,13 @@ export const space = { xs: 4, s: 8, m: 12, l: 16, xl: 24, xxl: 32 } as const
 export const radius = { panel: 16, inner: 8 } as const
 
 /** Component sizes, px: a list row, a two-line row (label over detail), and the two pills. */
-export const size = { row: 28, rowDetail: 44, rank: 28, pill: 32, pillS: 28 } as const
+export const size = { row: 32, rowDetail: 52, rank: 28, pill: 32, pillS: 28 } as const
 
 /** The glass every panel shares, in the scene (Glass.tsx) and in HTML (.glass). */
 export const glass = { fill: 0.62, glow: 24 } as const
+
+/**
+ * Panels that carry text (story cards, the tabs' panel), after the log (Nik): near-solid, so the globe's routes and
+ * lights never run behind a line of text. The scene's glass has no blur behind it, so it needs more fill than CSS.
+ */
+export const panel = { scene: 0.92, css: 0.86 } as const

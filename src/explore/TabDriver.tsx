@@ -48,9 +48,7 @@ export function TabDriver() {
     const changed = () => open(location.hash)
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      const store = useStory.getState()
-      if (store.sheet) store.setSheet(null)
-      else clearSelection()
+      clearSelection()
     }
     window.addEventListener('hashchange', changed)
     window.addEventListener('keydown', key)

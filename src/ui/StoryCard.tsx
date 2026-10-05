@@ -4,7 +4,7 @@ import type { CardContent } from '../story/chapters'
 import { Glass } from './Glass'
 import { Label } from './Label'
 import { moduleRow, textRow, type Row } from './rows'
-import { space, type, ui } from './tokens'
+import { panel, space, type, ui } from './tokens'
 
 const PADDING = space.xl
 const MILLION = '1,000,000'
@@ -70,7 +70,7 @@ export const StoryCard = forwardRef<Group, Props>(function StoryCard({ chapter, 
 
   return (
     <group ref={ref} visible={false}>
-      {ready && !bare && <Glass width={width} height={total} />}
+      {ready && !bare && <Glass width={width} height={total} fill={panel.scene} />}
       <group position={[pad, 0, 0]}>
         {rows.map((r, i) => (
           <group key={i}>

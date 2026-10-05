@@ -113,7 +113,7 @@ export function GlobeLabels({ layout }: { layout: Layout }) {
   }, [gl, layout, width, height])
 
   useFrame(() => {
-    const live = atEnd() && !useStory.getState().sheet
+    const live = atEnd()
     named.forEach((a, i) => {
       const g = marks.current[i]
       if (!g) return

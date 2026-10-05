@@ -5,15 +5,15 @@ import { airports, legs } from '../data'
 import { fmt } from '../data/facts'
 import { atEnd, clearSelection } from '../explore/explore'
 import { rowFor } from '../explore/TabDriver'
+import { detailOf } from '../explore/lists'
 import { replayHighlight } from '../scene/highlight'
 import { useStory } from '../state/store'
 import { legDate } from '../story/timeline'
 import { Glass } from './Glass'
-import { detailOf } from './interactive'
 import { Label } from './Label'
 import { layoutPills, Pill } from './kit'
 import { tabBarTop, type Layout } from './layout'
-import { space, type, ui } from './tokens'
+import { panel, space, type, ui } from './tokens'
 
 const WIDTH = 400
 const line = (role: keyof typeof type, s: number) => type[role].size * type[role].line * s
@@ -75,7 +75,7 @@ export function SelectionCard({ layout, width }: { layout: Layout; width: number
 
   return (
     <group ref={group}>
-      <Glass x={x} y={y} width={w} height={h} />
+      <Glass x={x} y={y} width={w} height={h} fill={panel.scene} />
       <Label x={x + pad} y={y + pad} role="displayM" s={s} color={ui.ink} width={inner} nowrap>
         {title}
       </Label>

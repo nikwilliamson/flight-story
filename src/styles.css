@@ -74,24 +74,31 @@ html::-webkit-scrollbar { display: none; }
 @keyframes tabs-in { from { opacity: 0; transform: translateY(-24px); } }
 @media (prefers-reduced-motion: reduce) { .tabs { animation: none; } }
 
-/* "Show all" and the log: a glass panel in the card column, with the scene's type and the same row as the scene. */
+/*
+ * Every tab's panel, built on the log (Nik): near-solid glass so nothing on the globe runs behind the text, a head,
+ * then rows of up to four lines, each line with one job: a mono meta line, the title (in its route colour on the log)
+ * with its count on the same baseline, then ink and dim lines of detail.
+ */
 .sheet {
   position: fixed;
   z-index: 10;
   display: flex;
   flex-direction: column;
   border-radius: var(--radius-panel);
+  background: linear-gradient(rgb(var(--glass-rgb) / calc(var(--panel-fill) + 0.04)), rgb(var(--glass-rgb) / var(--panel-fill)));
   box-shadow: 0 0 40px rgb(var(--edge-rgb) / 0.08);
   color: var(--ink);
   font: var(--body);
   overflow: hidden;
+  animation: sheet-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
-.sheet-head { display: grid; grid-template-columns: 1fr auto; gap: var(--space-m); padding: var(--space-xl) var(--space-xl) var(--space-m); border-bottom: 1px solid rgb(var(--edge-rgb) / 0.12); }
-.sheet-head h2 { margin: 0; font: var(--display-l); letter-spacing: var(--display-l-tracking); }
-.sheet-close { background: none; border: 0; color: var(--ink-dim); font: var(--display-m); cursor: pointer; padding: 0 var(--space-xs); }
-.sheet-close:hover { color: var(--ink); }
+@keyframes sheet-in { from { opacity: 0; transform: translateY(12px); } }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+.sheet-head { display: grid; gap: var(--space-m); padding: var(--space-xl) var(--space-xl) var(--space-m); border-bottom: 1px solid rgb(var(--edge-rgb) / 0.12); }
+.sheet-eyebrow, .sheet-section, .sheet-meta { font: var(--mono-label); letter-spacing: var(--mono-label-tracking); text-transform: uppercase; color: var(--ink-dim); }
+.sheet-head h2 { margin: calc(-1 * var(--space-s)) 0 0; font: var(--display-l); letter-spacing: var(--display-l-tracking); }
+.sheet-intro { margin: 0; color: var(--ink-dim); font: var(--body-s); }
 .sheet-search {
-  grid-column: 1 / -1;
   background: rgb(var(--chip-rgb) / 0.8);
   border: 1px solid rgb(var(--edge-rgb) / 0.2);
   border-radius: 999px;
@@ -99,47 +106,71 @@ html::-webkit-scrollbar { display: none; }
   font: var(--body);
   padding: var(--space-s) var(--space-l);
   outline: none;
+  min-width: 0;
 }
+.sheet-search::placeholder { color: var(--ink-dim); opacity: 0.7; }
 .sheet-search:focus { border-color: rgb(var(--edge-rgb) / 0.6); }
-.sheet-meta { grid-column: 1 / -1; display: flex; justify-content: space-between; font: var(--mono-label); letter-spacing: var(--mono-label-tracking); text-transform: uppercase; color: var(--ink-faint); }
+.sheet-meta { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-m); }
 .sheet-meta button { background: none; border: 0; color: var(--ink-dim); font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; padding: 0; }
-.sheet-meta button:hover { color: var(--ink); }
-.sheet-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-s) var(--space-l) var(--space-l); }
-.sheet-body ol { list-style: none; margin: 0; padding: 0; }
-.sheet-body li { border-radius: var(--radius-inner); cursor: pointer; }
-.sheet-body li:hover, .sheet-body li.on { background: rgb(var(--chip-rgb) / 0.7); }
+.sheet-meta button:hover, .sheet-meta button.on { color: var(--ink); }
+.sheet-switch { display: flex; gap: var(--space-l); }
+.sheet-switch button.on { box-shadow: 0 1px 0 var(--ink); }
+.sheet-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-s) var(--space-l) var(--space-xl); }
+.sheet-section { margin: var(--space-l) var(--space-s) var(--space-xs); font-weight: 400; }
+.sheet-group + .sheet-group { margin-top: var(--space-s); }
+.sheet-pills { display: flex; flex-wrap: wrap; gap: var(--space-s); padding: var(--space-s); }
 .sheet-empty { margin: var(--space-l) var(--space-s); color: var(--ink-dim); font: var(--body-s); }
 
-/* The list row (kit.tsx RankRow): rank, label over its detail, count. */
-.sheet-list li { display: grid; grid-template-columns: var(--rank) 1fr auto; align-items: baseline; padding: var(--space-xs) var(--space-s); min-height: calc(var(--row) - 2 * var(--space-xs)); }
-.sheet-list .rank, .sheet-list .count { font: var(--mono-data); color: var(--ink-faint); }
-.sheet-list .count { color: var(--ink-dim); }
-.sheet-list li:hover .rank, .sheet-list li.on .rank, .sheet-list li.on .count { color: var(--ink); }
-.sheet-list .label small { display: block; color: var(--ink-dim); font: var(--body-s); }
-
-/* The log: a leg per row, its route in its own colour as on the globe. */
-.sheet-log li { display: grid; grid-template-columns: 1fr auto; gap: 0 var(--space-m); padding: var(--space-s); }
-.sheet-log li.year {
+.rows { list-style: none; margin: 0; padding: 0; }
+.rows li:not(.year) {
+  display: grid;
+  grid-template-columns: var(--rank) 1fr auto;
+  align-items: baseline;
+  gap: var(--space-xs) var(--space-m);
+  padding: var(--space-s);
+  border-radius: var(--radius-inner);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.rows li:not(.year):hover, .rows li.on { background: rgb(var(--chip-rgb) / 0.7); }
+.rows .meta { grid-column: 2 / -1; font: var(--mono-data); color: var(--ink-dim); }
+.rows .rank { grid-column: 1; font: var(--mono-data); color: var(--ink-dim); }
+.rows .title { grid-column: 2; }
+/* The log has no ranks: its lines run the full width. */
+.rows.log li:not(.year) { grid-template-columns: 1fr auto; }
+.rows.log .meta, .rows.log .line { grid-column: 1 / -1; }
+.rows.log .title { grid-column: 1; }
+.rows .title { font: var(--display-s); color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rows .title.domestic { color: var(--domestic); }
+.rows .title.intl { color: var(--international); }
+.rows .title.heli { color: var(--helicopter); }
+.rows .count { font: var(--mono-data); color: var(--ink-dim); text-align: right; white-space: nowrap; }
+.rows .line { grid-column: 2 / -1; font: var(--body-s); color: var(--ink); }
+.rows .line.dim { color: var(--ink-dim); }
+.rows li.on .meta, .rows li.on .rank, .rows li.on .count, .rows li:hover .count, .rows li:hover .rank { color: var(--ink); }
+.rows li.gone .title { color: var(--ink-dim); }
+/* The log's years, pinned while their legs scroll under them. */
+.rows li.year {
   position: sticky;
   top: calc(-1 * var(--space-s));
   z-index: 1;
-  display: block;
   padding: var(--space-m) var(--space-s) var(--space-xs);
   font: var(--display-m);
   color: var(--ink);
-  cursor: default;
-  background: linear-gradient(rgb(var(--glass-rgb) / 0.96) 70%, rgb(var(--glass-rgb) / 0));
+  background: linear-gradient(rgb(var(--glass-rgb) / 0.98) 70%, rgb(var(--glass-rgb) / 0));
 }
-.sheet-log li.year:hover { background: linear-gradient(rgb(var(--glass-rgb) / 0.96) 70%, rgb(var(--glass-rgb) / 0)); }
-.sheet-log .when { font: var(--mono-data); color: var(--ink-dim); grid-column: 1 / -1; }
-.sheet-log .route { font: var(--display-s); color: var(--ink); }
-.sheet-log .route.domestic { color: var(--domestic); }
-.sheet-log .route.intl { color: var(--international); }
-.sheet-log .route.heli { color: var(--helicopter); }
-.sheet-log .miles { font: var(--mono-data); color: var(--ink-dim); text-align: right; }
-.sheet-log .miles::after { content: ' mi'; }
-.sheet-log .places, .sheet-log .craft { grid-column: 1 / -1; font: var(--body-s); color: var(--ink); }
-.sheet-log .craft { color: var(--ink-dim); }
+
+/* Homes: one bar from 1965 to now, a stretch per home, tagged above. */
+.homes { display: flex; gap: 2px; padding: var(--space-s) var(--space-s) 0; }
+.home { container-type: inline-size; flex: 1 1 0; min-width: 4px; display: grid; gap: var(--space-xs); padding: 0; background: none; border: 0; cursor: pointer; text-align: left; color: var(--ink-dim); }
+.home .tag { font: var(--mono-label); letter-spacing: var(--mono-label-tracking); overflow: hidden; white-space: nowrap; }
+.home::after { content: ''; height: 6px; border-radius: 1px; background: currentColor; opacity: 0.75; }
+.home.now { color: var(--accent); }
+/* A stretch too short for its tag shows the bar alone. */
+@container (max-width: 26px) { .home .tag { visibility: hidden; } }
+.home:hover, .home.on { color: var(--ink); }
+.home:hover::after, .home.on::after { opacity: 1; }
+.homes-axis { display: flex; justify-content: space-between; padding: var(--space-xs) var(--space-s) 0; font: var(--mono-data); color: var(--ink-dim); }
 
 /* When the scene can't draw: one line and a reload, centred on the empty page. */
 .fallback {

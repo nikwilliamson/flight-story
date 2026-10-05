@@ -14,7 +14,6 @@ import { Loader } from './Loader'
 import { ScreenLayer } from './ScreenLayer'
 import { StoryCards } from './StoryCards'
 import { StoryHud } from './StoryHud'
-import { TabPanel } from './TabPanel'
 
 /**
  * The interface, drawn in its own screen-space scene after the globe (and after its bloom), in CSS px with the
@@ -34,7 +33,6 @@ export function UiLayer() {
       <ScreenLayer priority={2} fade={{ from: tabBarBottom(layout), to: tabBarBottom(layout) + space.l, bottom: space.l }}>
         {layout.phone && <Scrim top={tabBarBottom(layout)} width={width} height={height} />}
         <StoryCards layout={layout} viewport={height} />
-        <TabPanel layout={layout} />
       </ScreenLayer>
       <ScreenLayer priority={3}>
         {journey && <StoryHud stage={layout.stage} s={layout.scale} phone={layout.phone} />}

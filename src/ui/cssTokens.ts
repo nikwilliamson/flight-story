@@ -1,5 +1,5 @@
 import { fonts } from './fonts'
-import { glass, radius, size, space, type, ui } from './tokens'
+import { glass, panel, radius, size, space, type, ui } from './tokens'
 
 // The HTML chrome uses the scene's own type: register the same files the SDF text reads.
 const faces: [string, string, string][] = [
@@ -26,6 +26,7 @@ const vars: Record<string, string | number> = {
   '--chip-rgb': rgb(ui.chip),
   '--edge-rgb': rgb(ui.edge),
   '--glass-fill': glass.fill,
+  '--panel-fill': panel.css,
   '--radius-panel': `${radius.panel}px`,
   '--radius-inner': `${radius.inner}px`,
   '--row': `${size.row}px`,

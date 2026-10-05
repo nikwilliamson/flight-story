@@ -67,7 +67,7 @@ export function PlanePhoto({ tail, x, y, width, s, onPhoto }: { tail: string | n
           <meshBasicMaterial map={texture} color="#d8dde6" transparent opacity={0} toneMapped={false} depthTest={false} depthWrite={false} />
         </mesh>
       )}
-      <Label x={x} y={y + height + space.xs * s} role="monoData" s={s} color={ui.inkFaint} width={width} nowrap>
+      <Label x={x} y={y + height + space.xs * s} role="monoData" s={s} color={ui.inkDim} width={width} nowrap>
         {creditFor(photo)}
       </Label>
       <Hit

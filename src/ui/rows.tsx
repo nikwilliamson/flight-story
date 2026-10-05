@@ -4,7 +4,6 @@ import type { Module, Plane } from '../story/chapters'
 import { textWidth } from './cssTokens'
 import { Glass } from './Glass'
 import { Label } from './Label'
-import { FilterChips, filtersHeight, HomesTimeline, homesHeight, ListModule, listHeight } from './interactive'
 import { CountUp, headHeight, layoutPills, Pill, RankRow, rowHeight, SectionLabel } from './kit'
 import { creditHeight, PHOTO_ASPECT, PlanePhoto } from './PlanePhoto'
 import { radius, space, type, ui, type Role } from './tokens'
@@ -127,7 +126,7 @@ export function moduleRow(m: Module, width: number, s: number): Row {
               const cy = y + top + space.l * s + Math.floor(i / 2) * cell
               return (
                 <group key={k}>
-                  <Label x={cx} y={cy} role="monoLabel" s={s} color={ui.inkFaint}>
+                  <Label x={cx} y={cy} role="monoLabel" s={s} color={ui.inkDim}>
                     {k}
                   </Label>
                   <Label x={cx} y={cy + lineOf('monoLabel', s) + space.xs * s} role="body" s={s} color={ui.ink} width={half - space.m * s} nowrap>
@@ -167,12 +166,6 @@ export function moduleRow(m: Module, width: number, s: number): Row {
     }
     case 'planes':
       return { gap, render: (y, onHeight) => <PlaneList y={y} width={width} s={s} label={m.label} planes={m.planes} onHeight={onHeight} /> }
-    case 'list':
-      return { gap, height: listHeight(m.list, m.top, s), render: (y) => <ListModule y={y} width={width} s={s} label={m.label} list={m.list} top={m.top} /> }
-    case 'filters':
-      return { gap, height: filtersHeight(m.chips, width, s), render: (y) => <FilterChips y={y} width={width} s={s} label={m.label} chips={m.chips} /> }
-    case 'homes':
-      return { gap, height: homesHeight(s), render: (y) => <HomesTimeline y={y} width={width} s={s} label={m.label} /> }
     case 'nights': {
       const cols = 10
       const spacing = space.xs * s

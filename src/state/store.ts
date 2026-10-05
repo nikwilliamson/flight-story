@@ -29,8 +29,6 @@ export interface Stage {
 }
 
 export type TabId = 'explore' | 'trips' | 'airports' | 'planes' | 'airlines' | 'log'
-/** A full list or the log, in an HTML panel ("Show all"). */
-export type SheetId = 'trips' | 'airports' | 'families' | 'planes' | 'airlines' | 'log'
 
 interface State {
   /** The loader has started to lift: the HTML chrome (tabs, sheet) waits for it so it never sits on the cover. */
@@ -53,12 +51,10 @@ interface State {
   setInteractive: (interactive: boolean) => void
   /** After the story: which tab is open (null = the closing card). */
   tab: TabId | null
-  sheet: SheetId | null
   /** Leg indices under the pointer in a tab, and the clicked selection, which stays lit (wireframe). */
   hover: readonly number[] | null
   selection: { id: string; legs: readonly number[] } | null
   setTab: (tab: TabId | null) => void
-  setSheet: (sheet: SheetId | null) => void
   setHover: (legs: readonly number[] | null) => void
   setSelection: (selection: { id: string; legs: readonly number[] } | null) => void
 }
@@ -79,12 +75,10 @@ export const useStory = create<State>()((set) => ({
   setHighlight: (highlight, preview = false) => set({ highlight, preview }),
   setInteractive: (interactive) => set({ interactive }),
   tab: null,
-  sheet: null,
   hover: null,
   selection: null,
   // Changing tabs drops whatever was lit (Nik).
-  setTab: (tab) => set({ tab, sheet: tab === 'log' ? 'log' : null, hover: null, selection: null }),
-  setSheet: (sheet) => set({ sheet, hover: null }),
+  setTab: (tab) => set({ tab, hover: null, selection: null }),
   setHover: (hover) => set({ hover }),
   setSelection: (selection) => set({ selection }),
 }))

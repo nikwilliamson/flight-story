@@ -17,6 +17,9 @@ export interface ListRow {
   legs: readonly number[]
 }
 
+/** A row's second line: its detail, with a tag ("gone", "closed") in front. */
+export const detailOf = (row: ListRow) => [row.tag && row.tag[0].toUpperCase() + row.tag.slice(1), row.detail].filter(Boolean).join(' · ') || undefined
+
 export interface List {
   id: ListId
   /** Column heading for the count. */

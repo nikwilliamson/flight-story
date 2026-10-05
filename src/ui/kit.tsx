@@ -5,7 +5,6 @@ import { reducedMotion } from '../motion'
 import { textWidth } from './cssTokens'
 import { Glass } from './Glass'
 import { Label, type LabelProps } from './Label'
-import { panelScroll } from './panelScroll'
 import { size, space, type, ui, type Role } from './tokens'
 
 /** The pointer's look over the scene's UI: one place sets it, so nothing leaves it stuck on "pointer". */
@@ -18,11 +17,9 @@ export interface HitEvents {
 }
 
 /** An invisible hit area in px space (top-left anchored), for rows, pills and links. */
-export function Hit({ x, y, width, height, onClick, ...events }: { x: number; y: number; width: number; height: number } & HitEvents) {
-  // The tap that ends a panel swipe isn't a pick.
-  const click = onClick && ((e: ThreeEvent<MouseEvent>) => void (panelScroll.dragged || onClick(e)))
+export function Hit({ x, y, width, height, ...events }: { x: number; y: number; width: number; height: number } & HitEvents) {
   return (
-    <mesh position={[x + width / 2, -(y + height / 2), 0.5]} onClick={click} {...events}>
+    <mesh position={[x + width / 2, -(y + height / 2), 0.5]} {...events}>
       <planeGeometry args={[width, height]} />
       <meshBasicMaterial transparent opacity={0} depthTest={false} depthWrite={false} />
     </mesh>
@@ -33,7 +30,7 @@ export function Hit({ x, y, width, height, onClick, ...events }: { x: number; y:
 export const headHeight = (s: number) => type.monoLabel.size * type.monoLabel.line * s + space.s * s
 
 /** The small upper-case label over a module ("MOST LEGS", "CHAPTER STATS"). */
-export function SectionLabel({ y, text, s, color = ui.inkFaint }: { y: number; text: string; s: number; color?: typeof ui.ink }) {
+export function SectionLabel({ y, text, s, color = ui.inkDim }: { y: number; text: string; s: number; color?: typeof ui.ink }) {
   return (
     <Label y={y} role="monoLabel" s={s} color={color}>
       {text}
@@ -129,7 +126,7 @@ export function RankRow({ y, width, s, rank, label, detail, count, share, faded 
     <group>
       {share !== undefined && !lit && <ShareBar x={labelX - space.s * s} y={y + space.xs * s / 2} width={(width - labelX + 2 * space.s * s) * share} height={h - space.xs * s} faded={faded} />}
       {lit && <Glass x={-space.s * s} y={y} width={width + 2 * space.s * s} height={h} radius={space.s * s} glow={0} fill={0.7} color={ui.chip} />}
-      <Label x={0} y={top + mono} role="monoData" s={s} color={lit ? ui.ink : ui.inkFaint}>
+      <Label x={0} y={top + mono} role="monoData" s={s} color={lit ? ui.ink : ui.inkDim}>
         {String(rank).padStart(2, '0')}
       </Label>
       <Label x={labelX} y={top} role="body" s={s} color={ui.ink} width={width - labelX - countW - space.m * s} nowrap>
