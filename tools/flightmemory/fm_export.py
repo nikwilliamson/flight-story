@@ -2,7 +2,7 @@
 """Export a FlightMemory (flightmemory.com) flight history to .xlsx / .csv.
 
 Same job as github.com/TobiasUr/FlightMemoryExporter, minus the Tk GUI:
-headless Chrome logs in, pages through FLIGHTDATA, and the rows land in a
+headless Chrome logs in, walks the FLIGHTDATA list 50 legs at a time, and the rows land in a
 sheet whose columns line up with Flight Log.xlsx (Date, From Code, To Code,
 Airline, Flight #, Aircraft, Tail #, Logged Miles, ...).
 
@@ -29,19 +29,25 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup, Tag
 
-LOGIN_URL = "https://www.flightmemory.com/"
+BASE_URL = "https://www.flightmemory.com"
+PAGE_SIZE = 50
+NEAR_DAYS = 3
 KM_PER_MILE = 1.609344
 
 
 @dataclass
 class Flight:
+    fm_no: int | None  # FlightMemory's own running leg number, 1 = first flight
     date: date | None
+    date_text: str  # the date cell as shown, for partial dates that don't parse
     dep_time: str
     arr_time: str
     from_code: str
     from_name: str
+    from_country: str
     to_code: str
     to_name: str
+    to_country: str
     airline: str
     flight_no: str
     aircraft: str
@@ -51,13 +57,18 @@ class Flight:
     seat: str
     seat_type: str
     cabin: str
+    role: str
     reason: str
+    future: bool
+    fm_id: str  # FlightMemory database id, from the row's edit link
     raw: str  # pipe-joined cell text, so nothing the parser misses is lost
 
 
 # Flight Log.xlsx column names first, FlightMemory-only extras after.
 COLUMNS = {
+    "fm_no": "FM #",
     "date": "Date",
+    "date_text": "FM Date",
     "from_name": "From",
     "from_code": "From Code",
     "to_name": "To",
@@ -67,13 +78,18 @@ COLUMNS = {
     "aircraft": "Aircraft",
     "tail": "Tail #",
     "miles": "Logged Miles",
+    "from_country": "From Country",
+    "to_country": "To Country",
     "dep_time": "Dep Time",
     "arr_time": "Arr Time",
     "duration": "Duration",
     "seat": "Seat",
     "seat_type": "Seat Type",
     "cabin": "Class",
+    "role": "Role",
     "reason": "Reason",
+    "future": "Future",
+    "fm_id": "FM ID",
     "raw": "FM Raw",
 }
 assert set(COLUMNS) == {f.name for f in fields(Flight)}
@@ -84,6 +100,10 @@ def values(f: Flight) -> list:
 
 
 # ---------------------------------------------------------------- scraping
+
+
+def flightdata_url(dbpos: int) -> str:
+    return f"{BASE_URL}/signin/?go=flugdaten&dbpos={dbpos}"
 
 
 def fetch_pages(username: str, password: str, headed: bool) -> list[str]:
@@ -99,30 +119,37 @@ def fetch_pages(username: str, password: str, headed: bool) -> list[str]:
     driver = webdriver.Chrome(options=opts)  # Selenium Manager fetches chromedriver
     wait = WebDriverWait(driver, 15)
     try:
-        driver.get(LOGIN_URL)
+        driver.get(BASE_URL)
         wait.until(ec.element_to_be_clickable((By.NAME, "username"))).send_keys(username)
         wait.until(ec.element_to_be_clickable((By.NAME, "passwort"))).send_keys(password)
         wait.until(ec.element_to_be_clickable(
             (By.XPATH, "//input[@type='submit' and @value='SignIn']"))).click()
-
         try:
-            wait.until(ec.element_to_be_clickable(
-                (By.XPATH, "//*[contains(text(), 'FLIGHTDATA')]"))).click()
+            wait.until(ec.presence_of_element_located(
+                (By.XPATH, "//a[normalize-space()='FLIGHTDATA']")))
         except TimeoutException:
             sys.exit("Login failed: FLIGHTDATA link never appeared (check username/password).")
 
-        pages = [driver.page_source]
-        print(f"page 1: {count_rows(pages[-1])} flights", file=sys.stderr)
-        while True:
+        # The list pages 50 legs at a time via ?dbpos=; walk it directly rather
+        # than clicking the pager, until a page comes back empty or repeats.
+        pages: list[str] = []
+        seen: set[int | None] = set()
+        for dbpos in range(0, 100_000, PAGE_SIZE):
+            driver.get(flightdata_url(dbpos))
             try:
-                nxt = WebDriverWait(driver, 5).until(ec.element_to_be_clickable(
-                    (By.XPATH, "//img[contains(@src, '/images/next.gif')]")))
+                wait.until(lambda d: count_rows(d.page_source) > 0)
             except TimeoutException:
                 break
-            nxt.click()
-            wait.until(ec.staleness_of(nxt))
+            html = driver.page_source
+            numbers = {row_number(tr) for tr in flight_rows(html)}
+            if numbers <= seen:
+                break
+            seen |= numbers
+            pages.append(html)
+            print(f"page {len(pages)}: {len(numbers)} flights", file=sys.stderr)
+        if not pages:
+            print("warning: FLIGHTDATA had no flight rows", file=sys.stderr)
             pages.append(driver.page_source)
-            print(f"page {len(pages)}: {count_rows(pages[-1])} flights", file=sys.stderr)
         return pages
     finally:
         driver.quit()
@@ -131,101 +158,152 @@ def fetch_pages(username: str, password: str, headed: bool) -> list[str]:
 # ---------------------------------------------------------------- parsing
 
 
+DATE = re.compile(r"(\d{1,2})[-./](\d{1,2})[-./](\d{4})")
+TIME = re.compile(r"\b(\d{1,2}:\d{2})\b")
+NUMBER = re.compile(r"[\d.,]+")
+EDIT_ID = re.compile(r"[?&]id=(\d+)")
+
+
+def cells(tr: Tag) -> list[Tag]:
+    # The distance/duration cell is a <th>, so count both.
+    return tr.find_all(["td", "th"], recursive=False)
+
+
 def flight_rows(html: str) -> list[Tag]:
-    """Data rows of the flight table: 3rd tbody inside .container, header row dropped."""
-    container = BeautifulSoup(html, "html.parser").select_one(".container")
-    if container is None:
-        return []
-    bodies = container.find_all("tbody")
-    if len(bodies) < 3:
-        return []
-    rows = bodies[2].find_all("tr", recursive=False)[1:]
-    return [tr for tr in rows if len(tr.find_all("td", recursive=False)) >= 13]
+    """Flight list rows: 10+ cells, the first being the leg number.
+
+    Not keyed on the date: older legs can carry partial dates (month or year only).
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    root = soup.select_one(".container") or soup
+    return [tr for tr in root.find_all("tr")
+            if len(c := cells(tr)) >= 10 and c[0].get_text(strip=True).isdigit()]
 
 
 def count_rows(html: str) -> int:
     return len(flight_rows(html))
 
 
-def parts(td: Tag) -> list[str]:
-    """Cell text split on <br>/child boundaries, like the original's getinfo()."""
-    return td.get_text(separator="|", strip=True).split("|")
+def lines(tag: Tag) -> list[str]:
+    """Text split on <br>/element boundaries."""
+    return [s for s in tag.get_text("|", strip=True).split("|") if s]
 
 
-def part(td: Tag, i: int) -> str:
-    p = parts(td)
-    return p[i] if i < len(p) else ""
+def row_number(tr: Tag) -> int | None:
+    text = cells(tr)[0].get_text(strip=True)
+    return int(text) if text.isdigit() else None
 
 
-IATA = re.compile(r"\b([A-Z0-9]{3})\b")
-DATE = re.compile(r"(\d{2})\.(\d{2})\.(\d{4})")
-TIME = re.compile(r"\b(\d{1,2}:\d{2})\b")
-DIST = re.compile(r"([\d.,]+)\s*(km|mi)", re.I)
+def to_int(text: str) -> int | None:
+    m = NUMBER.search(text)
+    return int(re.sub(r"[.,]", "", m.group())) if m else None
 
 
-def split_airport(td: Tag) -> tuple[str, str]:
-    """('LGW', 'London Gatwick') from a cell like 'LGW|London Gatwick|United Kingdom'."""
-    p = parts(td)
-    code = next((m.group(1) for s in p if (m := IATA.fullmatch(s.strip()))), "")
-    if not code and (m := IATA.search(p[0] if p else "")):
-        code = m.group(1)
-    name = next((s for s in p if s.strip() != code), "")
-    return code, name
+def parse_distance(th: Tag) -> tuple[int | None, str]:
+    """'940|mi|2:11|h' -> (940, '2:11'); km converted to miles."""
+    parts = lines(th)
+    miles, duration = None, ""
+    for value, unit in zip(parts, parts[1:]):
+        if unit in ("mi", "km") and (n := to_int(value)) is not None:
+            miles = n if unit == "mi" else round(n / KM_PER_MILE)
+        elif unit == "h" and TIME.fullmatch(value):
+            duration = value
+    return miles, duration
 
 
-def parse_miles(text: str) -> int | None:
-    m = DIST.search(text)
-    if not m:
-        return None
-    # "1.234" / "1,234" are thousands separators; "1234,5" is a decimal comma.
-    number = re.sub(r"[.,](?=\d{3}\b)", "", m.group(1)).replace(",", ".")
-    value = float(number)
-    return round(value / KM_PER_MILE) if m.group(2).lower() == "km" else round(value)
+def parse_seat(td: Tag) -> tuple[str, str, str, str, str]:
+    """'12A / Window' + <small>Economy|Passenger|Personal</small> -> its five parts.
+
+    The <small> block is [class], role, reason; class is omitted when unset.
+    """
+    small = td.find("small")
+    details = lines(small) if small else []
+    if small:
+        small.extract()
+    seat, _, seat_type = td.get_text(" ", strip=True).partition("/")
+    cabin = details[0] if len(details) >= 3 else ""
+    role, reason = details[-2:] if len(details) >= 2 else ("", "")
+    cabin = {"EconomyPlus": "Economy Plus"}.get(cabin, cabin)
+    return seat.strip(), seat_type.strip(), cabin, role, reason
 
 
-def pick(text: str, options: list[tuple[str, str]]) -> str:
-    return next((label for needle, label in options if needle in text), "")
-
-
-def parse_row(tr: Tag) -> Flight:
-    td = tr.find_all("td", recursive=False)
-    when = td[1].get_text(" ", strip=True)
+def parse_row(tr: Tag, day_first: bool) -> Flight:
+    c = cells(tr)
+    when = c[1].get_text(" ", strip=True)
     d = DATE.search(when)
     times = TIME.findall(when)
-    from_code, from_name = split_airport(td[2])
-    to_code, to_name = split_airport(td[4])
-    seat_text = td[12].get_text(" ", strip=True)
+    from_city, from_country, *_ = lines(c[3]) + ["", ""]
+    to_city, to_country, *_ = lines(c[5]) + ["", ""]
+    airline, flight_no, *_ = lines(c[7]) + ["", ""]
+    aircraft, tail, *_ = lines(c[8]) + ["", ""]
+    miles, duration = parse_distance(c[6])
+    raw = " | ".join(x.get_text(" ", strip=True) for x in c[:10])
+    seat, seat_type, cabin, role, reason = parse_seat(c[9])
+    edit = tr.find("option", value=EDIT_ID)
     return Flight(
-        date=date(int(d[3]), int(d[2]), int(d[1])) if d else None,
+        fm_no=row_number(tr),
+        date=parse_date(d, day_first),
+        date_text=when,
         dep_time=times[0] if times else "",
         arr_time=times[1] if len(times) > 1 else "",
-        from_code=from_code,
-        from_name=from_name,
-        to_code=to_code,
-        to_name=to_name,
-        airline=part(td[10], 0),
-        flight_no=part(td[10], 1),
-        aircraft=part(td[11], 0),
-        tail=part(td[11], 1),
-        miles=parse_miles(td[6].get_text(" ", strip=True)),
-        duration=td[8].get_text(" ", strip=True),
-        seat=seat_text.split("/")[0].strip(),
-        seat_type=pick(seat_text, [("Window", "Window"), ("Middle", "Middle"), ("Aisle", "Aisle")]),
-        cabin=pick(seat_text, [("EconomyPlus", "Economy Plus"), ("Economy", "Economy"),
-                               ("Business", "Business"), ("First", "First")]),
-        reason=pick(seat_text, [("Personal", "Personal")]),
-        raw=" | ".join(c.get_text(" ", strip=True) for c in td),
+        from_code=c[2].get_text(strip=True),
+        from_name=from_city,
+        from_country=from_country,
+        to_code=c[4].get_text(strip=True),
+        to_name=to_city,
+        to_country=to_country,
+        airline=airline,
+        flight_no=flight_no,
+        aircraft=aircraft,
+        tail=tail,
+        miles=miles,
+        duration=duration,
+        seat=seat,
+        seat_type=seat_type,
+        cabin=cabin,
+        role=role,
+        reason=reason,
+        future=tr.get("title") == "Future Flight",
+        fm_id=EDIT_ID.search(edit["value"])[1] if edit else "",
+        raw=raw,
     )
 
 
+def parse_date(m: re.Match | None, day_first: bool) -> date | None:
+    if not m:
+        return None
+    a, b, year = int(m[1]), int(m[2]), int(m[3])
+    day, month = (a, b) if day_first else (b, a)
+    try:
+        return date(year, month, day)
+    except ValueError:  # e.g. 00-00-1985 for an unknown day
+        return None
+
+
+def is_day_first(rows: list[Tag]) -> bool:
+    """FlightMemory renders dates in the account's locale (mm-dd-yyyy or dd.mm.yyyy)."""
+    pairs = [(int(m[1]), int(m[2])) for tr in rows
+             if (m := DATE.search(cells(tr)[1].get_text(" ", strip=True)))]
+    if any(a > 12 for a, _ in pairs):
+        return True
+    if any(b > 12 for _, b in pairs):
+        return False
+    return any("." in cells(tr)[1].get_text() for tr in rows)
+
+
 def parse_pages(pages: list[str]) -> list[Flight]:
-    flights = [parse_row(tr) for html in pages for tr in flight_rows(html)]
-    # Flight Log row order is chronological. Flip a newest-first listing before the
-    # stable sort so same-day legs without times keep their real order.
-    dated = [f.date for f in flights if f.date]
-    if dated and dated[0] > dated[-1]:
-        flights.reverse()
-    return sorted(flights, key=lambda f: (f.date or date.min, f.dep_time))
+    rows = [tr for html in pages for tr in flight_rows(html)]
+    day_first = is_day_first(rows)
+    by_number: dict[int | None, Flight] = {}
+    unnumbered: list[Flight] = []
+    for tr in rows:
+        f = parse_row(tr, day_first)
+        if f.fm_no is None:
+            unnumbered.append(f)
+        else:
+            by_number[f.fm_no] = f  # pages can overlap; last copy wins
+    # FM # is FlightMemory's chronological leg number, the same order as the log.
+    return sorted(by_number.values(), key=lambda f: f.fm_no) + unnumbered
 
 
 # ---------------------------------------------------------------- output
@@ -241,8 +319,6 @@ def write_xlsx(path: Path, flights: list[Flight], reconcile: dict[str, list[list
     ws.append(list(COLUMNS.values()))
     for f in flights:
         ws.append(values(f))
-    for cell in ws["A"][1:]:
-        cell.number_format = "yyyy-mm-dd"
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = ws.dimensions
 
@@ -255,6 +331,10 @@ def write_xlsx(path: Path, flights: list[Flight], reconcile: dict[str, list[list
             sheet.auto_filter.ref = sheet.dimensions
 
     for sheet in wb.worksheets:
+        for row in sheet.iter_rows(min_row=2):
+            for cell in row:
+                if isinstance(cell.value, date):
+                    cell.number_format = "yyyy-mm-dd"
         for i, col in enumerate(sheet.iter_cols(max_row=min(sheet.max_row, 200)), start=1):
             width = max((len(str(c.value)) for c in col if c.value is not None), default=8)
             sheet.column_dimensions[get_column_letter(i)].width = min(width + 2, 40)
@@ -272,56 +352,82 @@ def write_csv(path: Path, flights: list[Flight]) -> None:
 # ---------------------------------------------------------------- reconcile
 
 
+def as_date(value) -> date | None:
+    if isinstance(value, datetime):
+        return value.date()
+    return value if isinstance(value, date) else None
+
+
+def norm(value) -> str:
+    return str(value or "").replace(" ", "").upper()
+
+
 def reconcile(flights: list[Flight], log_path: Path) -> dict[str, list[list]]:
-    """Match FlightMemory legs to Flight Log rows on (date, from code, to code)."""
+    """Pair FlightMemory legs with Flight Log rows and list what differs.
+
+    Pass 1 pairs on exact (date, from code, to code). Pass 2 pairs what's left
+    when the flight number matches on the same date (an airport code differs), or
+    the route matches within NEAR_DAYS (the date differs), nearest date first.
+    """
     import openpyxl
 
     ws = openpyxl.load_workbook(log_path, read_only=True, data_only=True)["Flights"]
     rows = ws.iter_rows(values_only=True)
     header = list(next(rows))
-    col = {h: header.index(h) for h in ("ID", "Date", "From Code", "To Code", "Airline",
-                                         "Flight #", "Aircraft", "Tail #", "FM Sync")}
+    log = [dict(zip(header, r)) for r in rows if r[header.index("ID")] is not None]
+    for r in log:
+        r["Date"] = as_date(r["Date"])
 
-    def key(d, a, b):
-        d = d.date() if isinstance(d, datetime) else d
-        return (d, (a or "").upper(), (b or "").upper())
+    pairs: dict[int, dict] = {}  # FM list index -> log row
+    taken: set[int] = set()
 
-    log: dict[tuple, list] = {}
-    for r in rows:
-        if r[col["ID"]] is not None:
-            log.setdefault(key(r[col["Date"]], r[col["From Code"]], r[col["To Code"]]), []).append(r)
+    def claim(i: int, r: dict) -> None:
+        pairs[i] = r
+        taken.add(r["ID"])
 
-    matched = [["Log ID", "Date", "From", "To", "Field", "Flight Log", "FlightMemory"]]
+    exact: dict[tuple, list[dict]] = {}
+    for r in log:
+        exact.setdefault((r["Date"], norm(r["From Code"]), norm(r["To Code"])), []).append(r)
+    for i, f in enumerate(flights):
+        free = [r for r in exact.get((f.date, norm(f.from_code), norm(f.to_code)), [])
+                if r["ID"] not in taken]
+        if free:
+            claim(i, free[0])
+
+    for i, f in enumerate(flights):
+        if i in pairs or not f.date:
+            continue
+        candidates = [
+            r for r in log
+            if r["ID"] not in taken and r["Date"] and (
+                (r["Date"] == f.date and f.flight_no and norm(r["Flight #"]) == norm(f.flight_no))
+                or (norm(r["From Code"]) == norm(f.from_code) and norm(r["To Code"]) == norm(f.to_code)
+                    and abs((r["Date"] - f.date).days) <= NEAR_DAYS))]
+        if candidates:
+            claim(i, min(candidates, key=lambda r: abs((r["Date"] - f.date).days)))
+
+    matched = [["Log ID", "FM #", "Date", "From", "To", "Field", "Flight Log", "FlightMemory"]]
     fm_only = [list(COLUMNS.values())]
-    seen: set[int] = set()
-    for f in flights:
-        candidates = [r for r in log.get(key(f.date, f.from_code, f.to_code), [])
-                      if r[col["ID"]] not in seen]
-        if not candidates:
+    for i, f in enumerate(flights):
+        r = pairs.get(i)
+        if r is None:
             fm_only.append(values(f))
             continue
-        r = candidates[0]
-        seen.add(r[col["ID"]])
-        base = [r[col["ID"]], f.date, f.from_code, f.to_code]
-        diffs = [(label, r[col[label]], fm) for label, fm in
-                 (("Airline", f.airline), ("Flight #", f.flight_no),
-                  ("Aircraft", f.aircraft), ("Tail #", f.tail))
-                 if fm and str(r[col[label]] or "").strip().upper() != fm.strip().upper()]
+        base = [r["ID"], f.fm_no, f.date, f.from_code, f.to_code]
+        diffs = [(label, r[label], fm) for label, fm in
+                 (("Date", f.date), ("From Code", f.from_code), ("To Code", f.to_code),
+                  ("Flight #", f.flight_no), ("Tail #", f.tail))
+                 if fm and (r[label] != fm if label == "Date" else norm(r[label]) != norm(fm))]
         matched += [base + list(d) for d in diffs] or [base + ["(all match)", "", ""]]
 
     dated = [f.date for f in flights if f.date]
     lo, hi = (min(dated), max(dated)) if dated else (None, None)
-    log_only = [["Log ID", "Date", "From Code", "To Code", "Airline", "Flight #", "FM Sync"]]
-    for rs in log.values():
-        for r in rs:
-            d = r[col["Date"]].date() if isinstance(r[col["Date"]], datetime) else r[col["Date"]]
-            if r[col["ID"]] in seen or not lo or not isinstance(d, date) or not lo <= d <= hi:
-                continue
-            log_only.append([r[col[c]] for c in ("ID", "Date", "From Code", "To Code",
-                                                 "Airline", "Flight #", "FM Sync")])
-    log_only[1:] = sorted(log_only[1:], key=lambda x: x[0])
+    log_cols = ["ID", "Date", "From Code", "To Code", "Airline", "Flight #", "FM Sync"]
+    log_only = [["Log ID"] + log_cols[1:]]
+    log_only += [[r[c] for c in log_cols] for r in log
+                 if r["ID"] not in taken and lo and r["Date"] and lo <= r["Date"] <= hi]
 
-    print(f"reconcile: {len(seen)} matched, {len(fm_only) - 1} only on FlightMemory, "
+    print(f"reconcile: {len(pairs)} paired, {len(fm_only) - 1} only on FlightMemory, "
           f"{len(log_only) - 1} only in the log ({lo} to {hi})", file=sys.stderr)
     return {"Matched": matched, "Only on FlightMemory": fm_only, "Only in Log": log_only}
 
