@@ -112,12 +112,14 @@ export function FieldRings() {
     material.uniforms.uResolutionY.value = size.height
     const lit = geometry.getAttribute('aLit') as BufferAttribute
     let changed = false
-    fieldLegs.forEach((list, k) => {
-      const amount = Math.max(0, ...list.map(litAmount))
-      if (lit.getX(k * 4) === amount) return
+    // Plain loops: this runs every frame, so no per-field arrays.
+    for (let k = 0; k < fieldLegs.length; k++) {
+      let amount = 0
+      for (const leg of fieldLegs[k]) amount = Math.max(amount, litAmount(leg))
+      if (lit.getX(k * 4) === amount) continue
       for (let c = 0; c < 4; c++) lit.setX(k * 4 + c, amount)
       changed = true
-    })
+    }
     if (changed) lit.needsUpdate = true
   })
 
