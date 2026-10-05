@@ -15,21 +15,15 @@ import { ui } from './tokens'
 
 /** Keys run this far past the screen's edge so their round ends are cut off and they sit flush with it, px. */
 const OVERHANG = 2
-/** Closest two flight keys may sit, px: flights closer than this share a key. */
-const PITCH = 3
-/** Key lengths, px: a flight, a scroll item, and the extra swell at the playhead. */
-const FLIGHT = 7
-const ITEM = 12
-/** Blocks (asides, Moon trips) are slim bars this wide, plus BLOCK_SWELL at the playhead. */
-const BLOCK = 3.5
-const BLOCK_SWELL = 2.5
+/** Distance between keys, px: the rail holds as many as fit the screen's height. */
+const STEP = 4.5
+/** Key length, px, and the extra swell at the playhead. */
+const KEY = 9
 const SWELL = 14
 /** How far the swell reaches either side of the playhead, px. */
 const REACH = 26
 /** Key thickness, px. */
 const THICK = 1.6
-/** A fun fact's key: longer than a flight's, so the facts stand out among them, px. */
-const FACT = 13
 /** How fast keys ease to their size and the rails swap, per second. */
 const KEY_RATE = 12
 const SWAP_RATE = 2.2
@@ -39,76 +33,79 @@ const RIPPLE = 0.7
 const SLIDE = 22
 /** Soft glow drawn round lit keys near the playhead, px. */
 const HALO = 5
-const MAX = 2400
+/** Each Moon key is this much of a round trip. */
+const MOON_KEY = 0.1
+const MAX = 1600
 
 type Track = 'story' | 'laps' | 'moon'
 const TRACKS: Track[] = ['story', 'laps', 'moon']
 
 interface Key {
-  kind: 'flight' | 'item' | 'fact' | 'lap' | 'trip'
-  /** Scroll position this key stands for, and where it ends (items and event keys take up their scroll). */
+  /** The stretch of scroll the key stands for. */
   at: number
   until: number
   chapter: number
-  /** Flight keys: first leg index and how many legs share the key. Event keys: their number, from 0. */
-  leg: number
-  count: number
-  /** Event keys: how much of a whole lap or half-trip this key is (the last one is partial). */
-  part: number
-  text?: string
+  /** Story keys in a flight chapter: the legs drawn over the key's stretch, [first, last] (indices), else null. */
+  legs: [number, number] | null
+  /** Event keys: their number, from 0. */
+  n: number
 }
 
-const key = (k: Partial<Key> & Pick<Key, 'kind' | 'at' | 'chapter'>): Key => ({ until: k.at, leg: -1, count: 0, part: 1, ...k })
-
 /**
- * The story's scroll as keys: one per flight (shared where flights are closer than PITCH) where the scroll draws
- * it, one block per scroll item as tall as its scroll, and a longer key per fun fact spread through its chapter.
+ * Evenly spaced keys for the story rail, all alike, with no gaps. The chapters share them in proportion to their
+ * scroll, so a long chapter takes up more of the rail; each key stands for a slice of its chapter's scroll and, in
+ * the chapters that draw flights, the legs drawn over that slice.
  */
-function storyKeys(plan: Plan, span: number): Key[] {
-  const toY = (s: number) => (s / Math.max(1, plan.length)) * span
+function storyKeys(plan: Plan, count: number): Key[] {
+  const lengths = plan.segments.map((s) => Math.max(1, s.until - s.at))
+  const total = lengths.reduce((a, b) => a + b, 0)
   const keys: Key[] = []
   plan.segments.forEach((seg, i) => {
     const ch = CHAPTERS[i]
-    if (!ch.range || ch.hold) {
-      keys.push(key({ kind: 'item', at: seg.at, until: seg.until, chapter: i }))
-    } else {
-      const [a, b] = ch.range
-      const n = b - a + 1
-      let row = -Infinity
-      for (let k = 0; k < n; k++) {
-        const at = seg.at + ((k + 0.5) / n) * (seg.until - seg.at)
-        const leg = a - 1 + k
-        const last = keys.at(-1)
-        if (last?.kind === 'flight' && last.chapter === i && toY(at) - row < PITCH) {
-          last.count++
-          continue
-        }
-        row = toY(at)
-        keys.push(key({ kind: 'flight', at, chapter: i, leg, count: 1 }))
+    const n = Math.max(1, Math.round((count * lengths[i]) / total))
+    const flights = ch.range && !ch.hold ? ch.range : null
+    for (let j = 0; j < n; j++) {
+      let drawn: [number, number] | null = null
+      if (flights) {
+        const legsIn = flights[1] - flights[0] + 1
+        const a = Math.floor((j / n) * legsIn)
+        const b = Math.max(a, Math.ceil(((j + 1) / n) * legsIn) - 1)
+        drawn = [flights[0] - 1 + a, flights[0] - 1 + b]
       }
+      keys.push({ at: seg.at + (j / n) * lengths[i], until: seg.at + ((j + 1) / n) * lengths[i], chapter: i, legs: drawn, n: j })
     }
-    const facts = ch.modules.flatMap((m) => (m.kind === 'fact' ? [m.text] : []))
-    facts.forEach((text, j) => keys.push(key({ kind: 'fact', at: seg.at + ((j + 1) / (facts.length + 1)) * (seg.until - seg.at), chapter: i, text })))
   })
   return keys
 }
 
-/** An event chapter's own keys, filling the whole rail: one per lap of the Earth, or per leg of a Moon trip. */
+/** An event chapter's own rail: a key per lap of the Earth, or per tenth of a Moon round trip. */
 function eventKeys(plan: Plan, track: 'laps' | 'moon'): Key[] {
   const chapter = CHAPTERS.findIndex((c) => c.scene === track)
   const seg = plan.segments[chapter]
   if (!seg) return []
-  const total = track === 'laps' ? LAPS : MOON_TRIPS * 2
-  return Array.from({ length: Math.ceil(total) }, (_, i) =>
-    key({
-      kind: track === 'laps' ? 'lap' : 'trip',
-      at: seg.at + (i / total) * (seg.until - seg.at),
-      until: seg.at + (Math.min(total, i + 1) / total) * (seg.until - seg.at),
-      chapter,
-      leg: i,
-      part: Math.min(1, total - i),
-    }),
-  )
+  const total = track === 'laps' ? LAPS : MOON_TRIPS / MOON_KEY
+  return Array.from({ length: Math.ceil(total) }, (_, i) => ({
+    at: seg.at + (i / total) * (seg.until - seg.at),
+    until: seg.at + (Math.min(total, i + 1) / total) * (seg.until - seg.at),
+    chapter,
+    legs: null,
+    n: i,
+  }))
+}
+
+/** How many of a rail's keys the scroll has passed, fractional: where the playhead sits along it. */
+function passed(t: Track, keys: Key[], y: number) {
+  if (t === 'laps') return distance.laps * LAPS
+  if (t === 'moon') return (distance.moon * MOON_TRIPS) / MOON_KEY
+  let count = 0
+  for (const k of keys) {
+    if (y >= k.until) count++
+    else {
+      if (y > k.at) count += (y - k.at) / (k.until - k.at)
+      break
+    }
+  }
+  return count
 }
 
 const vertexShader = /* glsl */ `
@@ -150,15 +147,14 @@ const fragmentShader = /* glsl */ `
 const colour = new Color()
 
 /**
- * The scroll as piano keys down the right edge, laid out by scroll distance so each part takes the room its scroll
- * does. Through the story: a key per flight, lit once the scroll draws it; a block per aside,
- * the jump and the distance chapters, as tall as their scroll and filling as it runs, and a longer key per fun fact. In
- * the Earth laps and the Moon trips the rail swaps, rippling out from the playhead, for that chapter's own keys over
- * the whole height: a key per lap, a block per leg of each Moon trip. All white, flush with the screen's right edge. Keys swell and glow round the playhead. Hover
- * names a key; click scrolls there.
+ * The scroll as piano keys down the right edge, flush with the screen, top to bottom: evenly spaced white keys, all
+ * alike, lit as the scroll passes them. Chapters share the keys in proportion to their scroll. In the Earth laps and
+ * the Moon trips the rail swaps, rippling out from the playhead, for that chapter's own keys over the whole height:
+ * a key per lap, a key per tenth of a round trip. Keys swell and glow round the playhead and round the pointer. Hover names a key; click
+ * scrolls there.
  */
 export function Rail({ width, height, phone }: { width: number; height: number; phone: boolean }) {
-  const [hover, setHover] = useState<{ key: Key; y: number } | null>(null)
+  const [hover, setHover] = useState<{ key: Key; track: Track; y: number } | null>(null)
   const [counter, setCounter] = useState<{ text: string; y: number } | null>(null)
   // Flush with the viewport: the right edge, top to bottom (a hair in, so the end keys aren't half cut).
   const top = 1
@@ -173,6 +169,8 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
     shown: { story: 1, laps: 0, moon: 0 } as Record<Track, number>,
     swell: { story: new Float32Array(0), laps: new Float32Array(0), moon: new Float32Array(0) } as Record<Track, Float32Array>,
     head: 0,
+    /** Where the pointer is on the rail, px down it, or null: keys swell round it as round the playhead. */
+    pointer: null as number | null,
     counter: '',
     counterY: 0,
   }).current
@@ -197,6 +195,9 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
     return { geometry: g, material: m, attrs }
   }, [])
 
+  /** Where key i of a rail of n sits, px down the rail. */
+  const slot = (i: number, n: number) => ((i + 0.5) / Math.max(1, n)) * span
+
   useFrame((_, delta) => {
     const plan = scroll.plan
     if (!plan) return
@@ -204,7 +205,7 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
     if (plan !== state.plan || span !== state.span) {
       state.plan = plan
       state.span = span
-      state.tracks = { story: storyKeys(plan, span), laps: eventKeys(plan, 'laps'), moon: eventKeys(plan, 'moon') }
+      state.tracks = { story: storyKeys(plan, Math.floor(span / STEP)), laps: eventKeys(plan, 'laps'), moon: eventKeys(plan, 'moon') }
       for (const t of TRACKS) state.swell[t] = new Float32Array(state.tracks[t].length)
     }
     const y = window.scrollY
@@ -218,14 +219,10 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
       attrs.soft.setX(n, soft)
       n++
     }
-
-    // The story rail spans the whole story's scroll; an event rail spans its own chapter's.
-    const yOf = (t: Track, k: Key | undefined, at: number) => {
-      if (t === 'story' || !k) return (at / Math.max(1, plan.length)) * span
-      const seg = plan.segments[k.chapter]
-      return ((at - seg.at) / Math.max(1, seg.until - seg.at)) * span
+    const headOf = (t: Track) => {
+      const keys = state.tracks[t]
+      return (passed(t, keys, y) / Math.max(1, keys.length)) * span
     }
-    const headOf = (t: Track) => Math.min(span, Math.max(0, yOf(t, state.tracks[t][0], y)))
     state.head += (headOf(active) - state.head) * ease(dt, KEY_RATE)
 
     for (const t of TRACKS) {
@@ -235,49 +232,33 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
       const keys = state.tracks[t]
       const swell = state.swell[t]
       const head = t === active ? state.head : headOf(t)
-      const progress = t === 'laps' ? distance.laps * LAPS : t === 'moon' ? distance.moon * MOON_TRIPS * 2 : 0
+      const lit = passed(t, keys, y)
 
-      keys.forEach((k, i) => {
-        const ky = yOf(t, k, k.at)
-        const y1 = yOf(t, k, k.until)
-        const near = Math.max(head > ky && head < y1 ? 1 : 0, Math.exp(-(((ky - head) / REACH) ** 2)), y1 > ky ? Math.exp(-(((y1 - head) / REACH) ** 2)) : 0)
-        swell[i] += (near - swell[i]) * ease(dt, KEY_RATE)
+      keys.forEach((_, i) => {
+        const ky = slot(i, keys.length)
+        const atHead = Math.exp(-(((ky - head) / REACH) ** 2))
+        const atPointer = state.pointer === null || t !== active ? 0 : Math.exp(-(((ky - state.pointer) / REACH) ** 2))
+        swell[i] += (Math.max(atHead, atPointer) - swell[i]) * ease(dt, KEY_RATE)
         const s = swell[i]
         // The swap ripples out from the playhead: keys near it leave first and arrive first, sliding as they go.
         const order = Math.min(1, Math.abs(ky - head) / span)
         const v = Math.min(1, Math.max(0, shown * (1 + RIPPLE) - order * RIPPLE))
         const alpha = v * v * (3 - 2 * v)
         const edge = right + (1 - alpha) * SLIDE
-
-        const block = k.kind === 'item' || k.kind === 'trip'
-        if (block) {
-          const w = (BLOCK + BLOCK_SWELL * s) * scale + OVERHANG
-          // A block as tall as its scroll (less a gap between trips), filling top-down as it runs.
-          const h = Math.max(THICK, y1 - ky - (k.kind === 'trip' ? 6 : 1))
-          const fill = k.kind === 'trip' ? Math.min(1, Math.max(0, progress - k.leg) / k.part) : Math.min(1, Math.max(0, (y - k.at) / Math.max(1, k.until - k.at)))
-          put(edge - w / 2, ky + h / 2, w, h, colour.copy(ui.inkFaint), alpha * 0.5)
-          if (fill > 0) {
-            put(edge - w / 2, ky + (h * fill) / 2, w, h * fill, colour.copy(ui.ink), alpha * 0.92)
-            if (s > 0.05) put(edge - w / 2, ky + (h * fill) / 2, w, h * fill, colour, alpha * s * 0.3, HALO)
-          }
-          return
-        }
-
-        const w = ((k.kind === 'lap' ? ITEM - 2 : k.kind === 'fact' ? FACT : FLIGHT) + SWELL * s) * scale * (k.kind === 'lap' ? 0.4 + 0.6 * k.part : 1)
-        // A key: lit once drawn (flights) or run (laps); the current lap fills from the edge.
+        const w = (KEY + SWELL * s) * scale
         const h = THICK * (1 + 0.35 * s)
-        const lit = k.kind === 'lap' ? Math.min(1, Math.max(0, progress - k.leg) / k.part) : k.at <= y + 1 ? 1 : 0
-        if (lit < 1) put(edge - w / 2, ky, w, h, colour.copy(ui.inkDim), alpha * (0.4 + 0.4 * s))
-        if (lit > 0) {
-          colour.copy(ui.ink)
-          put(edge - (w * lit) / 2, ky, w * lit, h, colour, alpha * (0.75 + 0.25 * s))
-          if (s > 0.05) put(edge - (w * lit) / 2, ky, w * lit, h, colour, alpha * s * 0.45, HALO)
+        // Lit once passed; the key under the playhead fills from the edge as the scroll crosses it.
+        const fill = Math.min(1, Math.max(0, lit - i))
+        if (fill < 1) put(edge - w / 2, ky, w, h, colour.copy(ui.inkDim), alpha * (0.4 + 0.4 * s))
+        if (fill > 0) {
+          put(edge - (w * fill) / 2, ky, w * fill, h, colour.copy(ui.ink), alpha * (0.75 + 0.25 * s))
+          if (s > 0.05) put(edge - (w * fill) / 2, ky, w * fill, h, colour, alpha * s * 0.45, HALO)
         }
       })
     }
 
     // The playhead: one key longer and brighter than the rest, glowing.
-    const pw = (ITEM + SWELL + 6) * scale
+    const pw = (KEY + SWELL + 8) * scale
     put(right - pw / 2, state.head, pw, 2, colour.copy(ui.ink), 1)
     put(right - pw / 2, state.head, pw, 2, colour, 0.45, HALO + 2)
 
@@ -297,30 +278,21 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
   })
 
   const keyAt = (py: number) => {
-    const plan = scroll.plan
-    const t = trackNow()
-    const keys = state.tracks[t]
-    if (!plan || !keys.length) return null
-    const toY = (k: Key, at: number) => {
-      if (t === 'story') return top + (at / Math.max(1, plan.length)) * span
-      const seg = plan.segments[k.chapter]
-      return top + ((at - seg.at) / Math.max(1, seg.until - seg.at)) * span
-    }
-    // Blocks cover their whole scroll; otherwise the nearest key, facts winning near-ties so they can be hit among the flights.
-    const inside = keys.find((k) => k.until > k.at && py >= toY(k, k.at) && py <= toY(k, k.until))
-    if (inside) return { key: inside, y: toY(inside, inside.at) }
-    const d = (k: Key) => Math.abs(toY(k, k.at) - py) - (k.kind === 'fact' ? PITCH : 0)
-    let best = keys[0]
-    for (const k of keys) if (d(k) < d(best)) best = k
-    return { key: best, y: toY(best, best.at) }
+    const track = trackNow()
+    const keys = state.tracks[track]
+    if (!keys.length) return null
+    const i = Math.min(keys.length - 1, Math.max(0, Math.floor(((py - top) / span) * keys.length)))
+    return { key: keys[i], track, y: top + slot(i, keys.length) }
   }
   const move = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
+    state.pointer = -e.point.y - top
     const found = keyAt(-e.point.y)
     setHover((h) => (h?.key === found?.key ? h : found))
     document.body.style.cursor = 'pointer'
   }
   const leave = () => {
+    state.pointer = null
     setHover(null)
     document.body.style.cursor = ''
   }
@@ -332,7 +304,7 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
 
   /** Phones have no hover, and a hit strip there would steal the scroll's touches. */
   const hitWidth = phone ? 0 : 48
-  const labelX = width - (ITEM + SWELL + 6) * scale - 10
+  const labelX = width - (KEY + SWELL + 8) * scale - 10
   return (
     <group>
       <mesh geometry={geometry} material={material} frustumCulled={false} renderOrder={5} raycast={() => null} />
@@ -349,7 +321,7 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
       )}
       {hover && (
         <Label x={labelX} y={hover.y - 7} size={11} color={ui.ink} font={fonts.mono} align="right" nowrap>
-          {labelFor(hover.key)}
+          {labelFor(hover.key, hover.track)}
         </Label>
       )}
     </group>
@@ -359,14 +331,16 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
 /** Which rail the reader is on: the distance chapters have their own. */
 const trackNow = (): Track => CHAPTERS[scroll.active]?.scene ?? 'story'
 
-function labelFor(k: Key) {
-  const ch = CHAPTERS[k.chapter]
-  if (k.kind === 'fact') return k.text!.length > 64 ? `${k.text!.slice(0, 62).trimEnd()}…` : k.text!
-  if (k.kind === 'item') return ch.title
-  if (k.kind === 'lap') return k.part < 1 ? `Lap ${k.leg + 1}, the last ${Math.round(k.part * 100)}%` : `Lap ${k.leg + 1} round the Earth`
-  if (k.kind === 'trip') return `Trip ${Math.floor(k.leg / 2) + 1} · ${k.leg % 2 ? 'back to Earth' : 'out to the Moon'}`
-  const l = legs[k.leg]
-  const route = `${airports[l.from]?.code ?? '?'}–${airports[l.to]?.code ?? '?'}`
-  const legNo = k.count > 1 ? `Legs ${fmt(k.leg + 1)}–${fmt(k.leg + k.count)}` : `Leg ${fmt(k.leg + 1)}`
-  return `${legNo} · ${l.sort.slice(0, 4)}${k.count > 1 ? '' : ` · ${route}`}`
+function labelFor(k: Key, track: Track) {
+  if (track === 'laps') return `Lap ${k.n + 1} round the Earth`
+  if (track === 'moon') {
+    const trip = k.n * MOON_KEY
+    return `Trip ${Math.floor(trip) + 1} · ${trip % 1 < 0.5 ? 'out to the Moon' : 'back to Earth'}`
+  }
+  if (!k.legs) return CHAPTERS[k.chapter].title
+  const [a, b] = k.legs
+  const l = legs[a]
+  if (a === b) return `Leg ${fmt(a + 1)} · ${l.sort.slice(0, 4)} · ${airports[l.from]?.code ?? '?'}–${airports[l.to]?.code ?? '?'}`
+  const years = [l.sort.slice(0, 4), legs[b].sort.slice(0, 4)]
+  return `Legs ${fmt(a + 1)}–${fmt(b + 1)} · ${years[0] === years[1] ? years[0] : years.join('–')}`
 }
