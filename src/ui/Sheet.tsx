@@ -7,8 +7,7 @@ import { LISTS, ROWS, type ListRow } from '../explore/lists'
 import { useStory, type SheetId } from '../state/store'
 import { legDate } from '../story/timeline'
 import { fonts } from './fonts'
-import { layoutFor } from './layout'
-import { tabBarBottom } from './TabBar'
+import { layoutFor, tabBarBottom, useViewport } from './layout'
 
 // The HTML panels use the scene's own type: register the same files with the browser.
 const faces: [string, string][] = [
@@ -64,12 +63,7 @@ export function Sheet() {
   const selected = useStory((s) => s.selection?.id)
   const [query, setQuery] = useState('')
   const [newestFirst, setNewestFirst] = useState(true)
-  const [size, setSize] = useState(() => ({ width: innerWidth, height: innerHeight }))
-  useEffect(() => {
-    const resize = () => setSize({ width: innerWidth, height: innerHeight })
-    addEventListener('resize', resize)
-    return () => removeEventListener('resize', resize)
-  }, [])
+  const size = useViewport()
   useEffect(() => setQuery(''), [sheet])
 
   const layout = layoutFor(size.width, size.height)

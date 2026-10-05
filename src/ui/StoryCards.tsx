@@ -5,10 +5,9 @@ import { CHAPTERS } from '../story/chapters'
 import { scrollOf } from '../story/pacing'
 import { cardTop, planScroll } from '../story/scrollPlan'
 import { scroll } from '../story/scrollState'
-import type { Layout } from './layout'
+import { tabBarBottom, type Layout } from './layout'
 import { StoryCard } from './StoryCard'
 import { useStory } from '../state/store'
-import { tabBarBottom } from './TabBar'
 
 /**
  * Every chapter card, laid out once their text has been measured, then moved with the page scroll each frame.
