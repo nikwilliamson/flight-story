@@ -5,6 +5,7 @@ import { reducedMotion } from '../motion'
 import { textWidth } from './cssTokens'
 import { Glass } from './Glass'
 import { Label, type LabelProps } from './Label'
+import { panelScroll } from './panelScroll'
 import { size, space, type, ui, type Role } from './tokens'
 
 /** The pointer's look over the scene's UI: one place sets it, so nothing leaves it stuck on "pointer". */
@@ -17,9 +18,11 @@ export interface HitEvents {
 }
 
 /** An invisible hit area in px space (top-left anchored), for rows, pills and links. */
-export function Hit({ x, y, width, height, ...events }: { x: number; y: number; width: number; height: number } & HitEvents) {
+export function Hit({ x, y, width, height, onClick, ...events }: { x: number; y: number; width: number; height: number } & HitEvents) {
+  // The tap that ends a panel swipe isn't a pick.
+  const click = onClick && ((e: ThreeEvent<MouseEvent>) => void (panelScroll.dragged || onClick(e)))
   return (
-    <mesh position={[x + width / 2, -(y + height / 2), 0.5]} {...events}>
+    <mesh position={[x + width / 2, -(y + height / 2), 0.5]} onClick={click} {...events}>
       <planeGeometry args={[width, height]} />
       <meshBasicMaterial transparent opacity={0} depthTest={false} depthWrite={false} />
     </mesh>

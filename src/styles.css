@@ -135,6 +135,7 @@ html::-webkit-scrollbar { display: none; }
 .sheet-log .route { font: var(--display-s); color: var(--ink); }
 .sheet-log .route.domestic { color: var(--domestic); }
 .sheet-log .route.intl { color: var(--international); }
+.sheet-log .route.heli { color: var(--helicopter); }
 .sheet-log .miles { font: var(--mono-data); color: var(--ink-dim); text-align: right; }
 .sheet-log .miles::after { content: ' mi'; }
 .sheet-log .places, .sheet-log .craft { grid-column: 1 / -1; font: var(--body-s); color: var(--ink); }

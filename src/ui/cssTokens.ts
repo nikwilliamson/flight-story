@@ -21,6 +21,7 @@ const vars: Record<string, string | number> = {
   '--accent': hex(ui.accent),
   '--domestic': hex(ui.domestic),
   '--international': hex(ui.international),
+  '--helicopter': hex(ui.helicopter),
   '--glass-rgb': rgb(ui.glass),
   '--chip-rgb': rgb(ui.chip),
   '--edge-rgb': rgb(ui.edge),

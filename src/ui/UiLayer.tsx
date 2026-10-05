@@ -6,6 +6,7 @@ import { useStory } from '../state/store'
 import { layoutFor, tabBarBottom } from './layout'
 import { space } from './tokens'
 import { Rail } from './Rail'
+import { RouteLegend } from './RouteLegend'
 import { GlobeLabels } from './GlobeLabels'
 import { ScrollCue } from './ScrollCue'
 import { SelectionCard } from './SelectionCard'
@@ -38,6 +39,7 @@ export function UiLayer() {
       <ScreenLayer priority={3}>
         {journey && <StoryHud stage={layout.stage} s={layout.scale} phone={layout.phone} />}
         {journey && <Rail width={width} height={height} phone={layout.phone} />}
+        <RouteLegend layout={layout} height={height} journey={journey} />
         <ScrollCue layout={layout} width={width} height={height} />
         <GlobeLabels layout={layout} />
         <SelectionCard layout={layout} width={width} />

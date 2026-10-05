@@ -243,7 +243,6 @@ export const CHAPTERS: Chapter[] = [
     ],
     shot: SHOTS.tour,
     range: RANGES.tour,
-    highlight: [160, 161, 162, 163, 164],
   },
   {
     id: 'osaka',
