@@ -4,7 +4,7 @@ import { legs } from '../data'
 import { settledOn } from '../scene/camera/StoryCamera'
 import { useStory } from '../state/store'
 import { scroll } from '../story/scrollState'
-import { atEnd, clearSelection, flight, HOLD_S, select, TABS, tabOf } from './explore'
+import { atEnd, clearSelection, flight, HOLD_S, scrolledToEnd, select, TABS, tabOf } from './explore'
 import { ROWS, type ListRow } from './lists'
 
 const NONE: readonly number[] = []
@@ -53,6 +53,9 @@ export function TabDriver() {
   }, [])
 
   useFrame((_, delta) => {
+    // Scrolling back up into the story closes an open tab: its panel only lives at the end.
+    const open = useStory.getState()
+    if (open.tab && scroll.plan && !scrolledToEnd()) open.setTab(null)
     if (!atEnd()) return
     if (pending) {
       select(pending)

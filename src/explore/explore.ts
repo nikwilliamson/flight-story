@@ -26,8 +26,36 @@ export function tabOf(id: string): TabId {
   return 'explore'
 }
 
-/** The tabs are on once the story's last card has taken over. */
+/** The tabs' panels live at the story's end, where its last card has taken over. */
 export const atEnd = () => scroll.active === CHAPTERS.length - 1
+
+/** Whether the page is scrolled to the story's end: true from the moment of a jump, a frame before atEnd() is. */
+export const scrolledToEnd = () => !!scroll.plan && window.scrollY >= (scroll.plan.segments.at(-1)?.at ?? 0) - 1
+
+/** Where the reader was in the story when a tab took them to the end, so Story can bring them back. */
+let storyY: number | null = null
+
+/**
+ * Opens a tab from anywhere: the tabs are always on (Nik), and their panels live at the story's end, so mid-story
+ * the page jumps there first (the globe shows the whole log) and remembers where the reader was.
+ */
+export function openTab(tab: TabId) {
+  if (!scrolledToEnd()) {
+    storyY = window.scrollY
+    window.scrollTo(0, document.documentElement.scrollHeight)
+  }
+  useStory.getState().setTab(tab)
+  history.replaceState(null, '', `#${tab}`)
+}
+
+/** Closes the tab and returns to the story where the reader left it (or stays at the end if they came from there). */
+export function backToStory() {
+  useStory.getState().setTab(null)
+  history.replaceState(null, '', location.pathname + location.search)
+  if (storyY === null) return
+  window.scrollTo(0, storyY)
+  storyY = null
+}
 
 const MIN_ZOOM = 1
 const MAX_ZOOM = 9
