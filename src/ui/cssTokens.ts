@@ -36,7 +36,7 @@ const vars: Record<string, string | number> = {
 }
 for (const [k, v] of Object.entries(space)) vars[`--space-${k}`] = `${v}px`
 for (const [name, role] of Object.entries(type)) {
-  const id = name.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
+  const id = name.replace(/[A-Z]+/g, (m) => `-${m.toLowerCase()}`)
   vars[`--${id}`] = `${role.family === 'Story Display' && role.font === fonts.display ? 600 : role.family === 'Story Display' ? 500 : 400} ${role.size}px/${role.line} '${role.family}', system-ui, sans-serif`
   vars[`--${id}-tracking`] = `${role.tracking}em`
 }

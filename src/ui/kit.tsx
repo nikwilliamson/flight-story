@@ -1,10 +1,8 @@
-import { useFrame, type ThreeEvent } from '@react-three/fiber'
-import { useRef, useState } from 'react'
-import type { Mesh, Object3D } from 'three'
-import { reducedMotion } from '../motion'
+import type { ThreeEvent } from '@react-three/fiber'
+import { useState } from 'react'
 import { textWidth } from './cssTokens'
 import { Glass } from './Glass'
-import { Label, type LabelProps } from './Label'
+import { Label } from './Label'
 import { size, space, type, ui, type Role } from './tokens'
 
 /** The pointer's look over the scene's UI: one place sets it, so nothing leaves it stuck on "pointer". */
@@ -26,25 +24,13 @@ export function Hit({ x, y, width, height, ...events }: { x: number; y: number; 
   )
 }
 
-/** Height of a section label and the space under it, before what it heads. */
-export const headHeight = (s: number) => type.monoLabel.size * type.monoLabel.line * s + space.s * s
-
-/** The small upper-case label over a module ("MOST LEGS", "CHAPTER STATS"). */
-export function SectionLabel({ y, text, s, color = ui.inkDim }: { y: number; text: string; s: number; color?: typeof ui.ink }) {
-  return (
-    <Label y={y} role="monoLabel" s={s} color={color}>
-      {text}
-    </Label>
-  )
-}
-
 export type PillSize = 'l' | 's'
 const pillHeight = (p: PillSize, s: number) => (p === 'l' ? size.pill : size.pillS) * s
 const pillRole = (mono: boolean): Role => (mono ? 'monoData' : 'bodyS')
 export const pillWidth = (text: string, s: number, mono = false) => textWidth(text, pillRole(mono), s) + 2 * space.m * s
 
 /**
- * The one pill: tabs (HTML, .pill), filters, "Show all", and the static chips. Lit means white text on a brighter
+ * The scene's pill, on the selection card (the HTML twin is .pill). Lit means white text on a brighter
  * fill, like a lit line on the globe; at rest the text is dim.
  */
 export function Pill({ x, y, text, s, p = 's', mono = false, lit = false, events }: { x: number; y: number; text: string; s: number; p?: PillSize; mono?: boolean; lit?: boolean; events?: HitEvents }) {
@@ -95,92 +81,4 @@ export function layoutPills(items: string[], width: number, s: number, p: PillSi
     x += w + gap
   }
   return { placed, height: (row + 1) * h + row * gap }
-}
-
-const noRaycast = () => null
-
-/** A row's share of the top row, as a faint flat bar behind it (types, aircraft, airlines): the list reads as a chart. */
-function ShareBar({ x, y, width, height, faded }: { x: number; y: number; width: number; height: number; faded: boolean }) {
-  return (
-    <mesh position={[x + width / 2, -(y + height / 2), 0.1]} raycast={noRaycast}>
-      <planeGeometry args={[Math.max(width, 1), height]} />
-      <meshBasicMaterial color={ui.chip} transparent opacity={faded ? 0.25 : 0.5} depthTest={false} depthWrite={false} />
-    </mesh>
-  )
-}
-
-export const rowHeight = (detail: boolean, s: number) => (detail ? size.rowDetail : size.row) * s
-
-/**
- * The one list row, in story cards, tab panels and (as CSS) the sheet: a rank, the label with its detail under it, and
- * the count. Lit is white, with a chip behind it.
- */
-export function RankRow({ y, width, s, rank, label, detail, count, share, faded = false, lit = false, events }: { y: number; width: number; s: number; rank: number; label: string; detail?: string; count: string; share?: number; faded?: boolean; lit?: boolean; events?: HitEvents }) {
-  const h = rowHeight(detail !== undefined, s)
-  const body = type.body.size * type.body.line * s
-  const top = y + (size.row * s - body) / 2
-  const mono = (type.body.size - type.monoData.size) * 0.5 * s
-  const countW = textWidth(count, 'monoData', s)
-  const labelX = size.rank * s
-  return (
-    <group>
-      {share !== undefined && !lit && <ShareBar x={labelX - space.s * s} y={y + space.xs * s / 2} width={(width - labelX + 2 * space.s * s) * share} height={h - space.xs * s} faded={faded} />}
-      {lit && <Glass x={-space.s * s} y={y} width={width + 2 * space.s * s} height={h} radius={space.s * s} glow={0} fill={0.7} color={ui.chip} />}
-      <Label x={0} y={top + mono} role="monoData" s={s} color={lit ? ui.ink : ui.inkDim}>
-        {String(rank).padStart(2, '0')}
-      </Label>
-      <Label x={labelX} y={top} role="body" s={s} color={ui.ink} width={width - labelX - countW - space.m * s} nowrap>
-        {label}
-      </Label>
-      {detail !== undefined && (
-        <Label x={labelX} y={top + body - space.xs * s} role="bodyS" s={s} color={ui.inkDim} width={width - labelX - countW - space.m * s} nowrap>
-          {detail}
-        </Label>
-      )}
-      <Label x={width} y={top + mono} role="monoData" s={s} color={lit ? ui.ink : ui.inkDim} align="right">
-        {count}
-      </Label>
-      {events && <Hit x={-space.s * s} y={y} width={width + 2 * space.s * s} height={h} {...events} />}
-    </group>
-  )
-}
-
-/** Seconds a counted number takes to reach its value. */
-const COUNT_S = 1.4
-const NUMBER = /^(\d{1,3}(,\d{3})*|\d+)(\.\d+)?$/
-
-/** True if the object and everything above it is visible (the story moves cards by toggling their group). */
-const shown = (o: Object3D | null) => {
-  for (let p = o; p; p = p.parent) if (!p.visible) return false
-  return !!o
-}
-
-/**
- * A number that counts up from zero each time its card comes on screen, then holds. Anything that isn't a plain
- * number ("1965–2026") is shown as is.
- */
-export function CountUp({ value, ...label }: Omit<LabelProps, 'children'> & { value: string }) {
-  const ref = useRef<Mesh>(null)
-  const match = NUMBER.exec(value)
-  // Starts at zero so the first frame on screen never flashes the final value.
-  const [text, setText] = useState(() => (match ? (0).toFixed(match[3] ? match[3].length - 1 : 0) : value))
-  const state = useRef({ was: false, t: 0 }).current
-  useFrame((_, delta) => {
-    if (!match) return
-    const now = shown(ref.current)
-    if (now && !state.was) state.t = reducedMotion() ? COUNT_S : 0
-    state.was = now
-    if (state.t >= COUNT_S) return text !== value && setText(value)
-    state.t = Math.min(COUNT_S, state.t + Math.min(delta, 0.1))
-    const k = 1 - (1 - state.t / COUNT_S) ** 3
-    const target = Number(value.replace(/,/g, ''))
-    const decimals = match[3] ? match[3].length - 1 : 0
-    const next = (target * k).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping: value.includes(',') })
-    if (next !== text) setText(next)
-  })
-  return (
-    <Label ref={ref} {...label}>
-      {text}
-    </Label>
-  )
 }

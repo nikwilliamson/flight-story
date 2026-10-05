@@ -6,7 +6,8 @@ import { reducedMotion } from '../motion'
 import { useStory } from '../state/store'
 import { palette } from '../theme'
 import { Label, setOpacity } from './Label'
-import { openingTitle, titleRanges } from './StoryCard'
+import { openingTitle, titleRanges } from './opening'
+import { scrollTop } from '../story/scrollState'
 import { hashParams, shareIdOf } from '../hash'
 import { space, ui } from './tokens'
 
@@ -52,7 +53,7 @@ export function Loader() {
     if (done || state.gone > 0) state.gone = reducedMotion() ? 1 : Math.min(1, state.gone + dt / LIFT)
     if (!place) {
       const waited = performance.now() - state.started > CUT_WAIT * 1000
-      if (cuts && openingTitle.known && window.scrollY === 0) setPlace({ x: openingTitle.x, y: openingTitle.y, width: openingTitle.width, s: openingTitle.s })
+      if (cuts && openingTitle.known && scrollTop() === 0) setPlace({ x: openingTitle.x, y: openingTitle.y, width: openingTitle.width, s: openingTitle.s })
       else if (waited || !cuts) setPlace('centre')
     }
     const g = group.current
@@ -65,7 +66,8 @@ export function Loader() {
     // centred, it fades with the cover.
     bar.current!.visible = state.gone === 0 && (place === 'centre' || titleHeight > 0)
     marks.current!.visible = place !== null
-    setOpacity(title.current, place === 'centre' ? 1 - state.gone : 1)
+    // The HTML card fades in over the same spot as the cover lifts, so the scene's copy of the title fades out with it.
+    setOpacity(title.current, 1 - state.gone)
   })
 
   const y = height / 2

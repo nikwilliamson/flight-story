@@ -4,7 +4,6 @@ import { palette } from '../theme'
 import { useThree } from '@react-three/fiber'
 import { useStory } from '../state/store'
 import { layoutFor, tabBarBottom } from './layout'
-import { space } from './tokens'
 import { Rail } from './Rail'
 import { RouteLegend } from './RouteLegend'
 import { GlobeLabels } from './GlobeLabels'
@@ -12,7 +11,6 @@ import { ScrollCue } from './ScrollCue'
 import { SelectionCard } from './SelectionCard'
 import { Loader } from './Loader'
 import { ScreenLayer } from './ScreenLayer'
-import { StoryCards } from './StoryCards'
 import { StoryHud } from './StoryHud'
 
 /**
@@ -28,12 +26,12 @@ export function UiLayer() {
 
   return (
     <>
-      {/* The text dissolves as it rises into the tab bar, gone before it reaches the pills (phones: under the pinned
-          globe; desktop: under the bar across the top), so cards never run behind the tabs. */}
-      <ScreenLayer priority={2} fade={{ from: tabBarBottom(layout), to: tabBarBottom(layout) + space.l, bottom: space.l }}>
-        {layout.phone && <Scrim top={tabBarBottom(layout)} width={width} height={height} />}
-        <StoryCards layout={layout} viewport={height} />
-      </ScreenLayer>
+      {/* The story's cards are HTML over the canvas (Story.tsx); phones keep a veil under them so they read. */}
+      {layout.phone && (
+        <ScreenLayer priority={2}>
+          <Scrim top={tabBarBottom(layout)} width={width} height={height} />
+        </ScreenLayer>
+      )}
       <ScreenLayer priority={3}>
         {journey && <StoryHud stage={layout.stage} s={layout.scale} phone={layout.phone} />}
         {journey && <Rail width={width} height={height} phone={layout.phone} />}

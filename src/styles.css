@@ -1,22 +1,18 @@
 /*
- * Full-bleed fixed canvas over an empty scroll spacer. Nearly everything visible is drawn in the scene; the HTML here
- * (tabs, the sheet, the fallback) reads the same tokens as the scene's UI, set as custom properties by cssTokens.ts.
+ * Full-bleed fixed canvas with the story's own scroller over it. The globe, its labels and the HUD are drawn in the
+ * scene; the HTML here (story cards, tabs, the sheet, the fallback) reads the same tokens as the scene's UI, set as
+ * custom properties by cssTokens.ts.
  */
 :root {
   --space: #03060d;
   color-scheme: dark;
 }
 
-html, body { margin: 0; background: var(--space); }
-body { overscroll-behavior-y: none; }
-/* The rail of keys down the right edge is the scrollbar. */
-html { scrollbar-width: none; }
-html::-webkit-scrollbar { display: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--space); overscroll-behavior: none; }
 
 .app { position: fixed; inset: 0; }
-/* pan-y: vertical swipes scroll the page (the story); the globe takes drags only once released. */
-.globe { position: absolute !important; inset: 0; touch-action: pan-y; }
-#scroll-spacer { height: 100vh; }
+/* The story's scroller covers the globe until the end; there the globe takes drags and pinches. */
+.globe { position: absolute !important; inset: 0; touch-action: none; }
 
 /* Glass, as Glass.tsx draws it in the scene: the tinted body, an edge brightest along the top. */
 .glass, .sheet, .pill {
@@ -171,6 +167,102 @@ html::-webkit-scrollbar { display: none; }
 .home:hover, .home.on { color: var(--ink); }
 .home:hover::after, .home.on::after { opacity: 1; }
 .homes-axis { display: flex; justify-content: space-between; padding: var(--space-xs) var(--space-s) 0; font: var(--mono-data); color: var(--ink-dim); }
+
+/*
+ * The story: its own scroller over the canvas (the rail of keys down the right edge is its scrollbar). Each chapter is
+ * a section laid out from the scroll plan, its card held by CSS sticky for the chapter's length, so the browser moves
+ * the cards natively, momentum and all. At the end the globe takes the pointer everywhere but the card.
+ */
+.story {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  opacity: 0;
+  transition: opacity 0.9s, visibility 0.9s;
+  -webkit-tap-highlight-color: transparent;
+}
+.story::-webkit-scrollbar { display: none; }
+.story.ready { opacity: 1; }
+/* An open tab takes the cards' place; the journey keeps its scroll position underneath. */
+.story.away { opacity: 0; visibility: hidden; pointer-events: none; transition-duration: 0.3s; }
+.story.released { pointer-events: none; }
+.story.released .card { pointer-events: auto; }
+.story-track { position: relative; }
+.story-chapter { position: absolute; }
+
+.card {
+  position: sticky;
+  container-type: inline-size;
+  padding: var(--space-xl);
+  border-radius: var(--radius-panel);
+  background: linear-gradient(rgb(var(--glass-rgb) / calc(var(--panel-fill) + 0.04)), rgb(var(--glass-rgb) / var(--panel-fill)));
+  border: 1px solid rgb(var(--edge-rgb) / 0.12);
+  border-top-color: rgb(var(--edge-rgb) / 0.4);
+  box-shadow: 0 0 40px rgb(var(--edge-rgb) / 0.08);
+  color: var(--ink);
+  font: var(--body);
+}
+/* Phones: no box (Nik), the text straight over the veil under the globe. */
+.card.bare { padding: var(--space-m) 0; background: none; border: 0; box-shadow: none; border-radius: 0; }
+.card-eyebrow, .mod-label { display: block; font: var(--mono-label); letter-spacing: var(--mono-label-tracking); text-transform: uppercase; color: var(--ink-dim); }
+.card-title { margin: var(--space-m) 0 0; font: var(--display-l); letter-spacing: var(--display-l-tracking); text-wrap: balance; }
+/* Wraps greedily, as the loader draws it, so the match cut lands line for line. */
+.card-title.opening { font: var(--display-xl); letter-spacing: var(--display-xl-tracking); text-wrap: wrap; }
+.card-title .million { color: var(--accent); }
+.card-body { margin: var(--space-l) 0 0; color: var(--ink-dim); text-wrap: pretty; }
+
+.mod { margin-top: var(--space-xl); }
+.mod-label { margin: 0 0 var(--space-s); font-weight: 400; }
+.mod .rows { margin: 0 calc(-1 * var(--space-s)); }
+.rows.static li:not(.year) { cursor: default; }
+.rows.static li:hover { background: none; }
+.rows.static li:hover .count, .rows.static li:hover .rank { color: var(--ink-dim); }
+
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-m); margin: 0; }
+@container (min-width: 360px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+.stats div { display: grid; gap: var(--space-xs); min-width: 0; }
+.stats dt { font: var(--mono-label); letter-spacing: var(--mono-label-tracking); text-transform: uppercase; color: var(--ink-dim); }
+.stats dd { margin: 0; font: var(--display-m); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.codes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-s); margin: 0; font: var(--mono-data); color: var(--ink); }
+.codes > span { display: inline-flex; align-items: center; gap: var(--space-s); }
+.codes .arrow { color: var(--ink-dim); }
+
+.mod.fact { position: relative; padding-left: var(--space-l); }
+.mod.fact::before { content: ''; position: absolute; left: 0; top: 2px; bottom: 2px; width: 2px; border-radius: 1px; background: var(--accent); }
+.mod.fact .mod-label { color: var(--accent); }
+.mod.fact p { margin: 0; color: var(--ink); }
+
+.pass { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-xs) var(--space-l); --route: var(--domestic); }
+.pass.intl { --route: var(--international); }
+.pass .code { font: var(--display-l); letter-spacing: var(--display-l-tracking); }
+.pass .line { height: 1.5px; background: var(--route); box-shadow: 0 0 10px var(--route); }
+.pass .place { grid-column: 1 / 3; font: var(--body-s); color: var(--ink-dim); }
+.pass .place.to { grid-column: 3; text-align: right; }
+.pass-rows { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-m); margin: var(--space-l) 0 0; }
+.pass-rows div { display: grid; gap: var(--space-xs); min-width: 0; }
+.pass-rows dt { font: var(--mono-label); letter-spacing: var(--mono-label-tracking); text-transform: uppercase; color: var(--ink-dim); }
+.pass-rows dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.nights { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(10, 1fr); gap: var(--space-xs); }
+.nights li { display: grid; place-items: center; height: 30px; border-radius: var(--space-xs); background: rgb(var(--chip-rgb) / 0.75); font: var(--mono-data); font-size: min(12px, 2.6cqi); color: var(--ink-dim); }
+.nights li.empty { background: rgb(var(--glass-rgb) / 0.18); outline: 1px solid rgb(var(--edge-rgb) / 0.06); outline-offset: -1px; }
+
+.plane { margin-top: var(--space-s); padding: var(--space-m); border-radius: var(--radius-inner); background: rgb(var(--chip-rgb) / 0.55); }
+.plane figure { margin: 0 0 var(--space-m); }
+.plane img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--space-xs); opacity: 0; transition: opacity 0.6s; background: rgb(var(--glass-rgb) / 0.6); }
+.plane img.in { opacity: 1; }
+.plane figcaption { margin-top: var(--space-xs); font: var(--mono-data); color: var(--ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plane figcaption a { color: inherit; text-decoration: none; }
+.plane figcaption a:hover { color: var(--ink); }
+.plane h4 { position: relative; margin: 0; padding-left: var(--space-s); font: var(--display-s); }
+.plane h4::before { content: ''; position: absolute; left: 0; top: 2px; bottom: 2px; width: 2px; border-radius: 1px; background: var(--accent); }
+.plane-meta { margin: var(--space-xs) 0 0; padding-left: var(--space-s); font: var(--mono-data); color: var(--ink-dim); }
+.plane-story { margin: var(--space-s) 0 0; padding-left: var(--space-s); font: var(--body-s); color: var(--ink); }
 
 /* When the scene can't draw: one line and a reload, centred on the empty page. */
 .fallback {
