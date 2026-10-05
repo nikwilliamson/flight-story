@@ -8,7 +8,7 @@ import { ease } from '../motion'
 import { CHAPTERS } from '../story/chapters'
 import { distance, LAPS, MOON_TRIPS } from '../story/distance'
 import type { Plan } from '../story/scrollPlan'
-import { scroll } from '../story/scrollState'
+import { scroll, scrollTop, scrollToY } from '../story/scrollState'
 import { Label } from './Label'
 import { pointer } from './kit'
 import { ui } from './tokens'
@@ -213,7 +213,7 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
       state.tracks = { story: storyKeys(plan, Math.floor(span / STEP)), laps: eventKeys(plan, 'laps'), moon: eventKeys(plan, 'moon') }
       for (const t of TRACKS) state.swell[t] = new Float32Array(state.tracks[t].length)
     }
-    const y = window.scrollY
+    const y = scrollTop()
     const active = trackNow()
     let n = 0
     const put = (x: number, cy: number, w: number, h: number, c: Color, alpha: number, soft = 0) => {
@@ -304,7 +304,7 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
   const click = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation()
     const found = keyAt(-e.point.y)
-    if (found) window.scrollTo({ top: found.key.at + 1, behavior: 'smooth' })
+    if (found) scrollToY(found.key.at + 1, true)
   }
 
   /** Phones have no hover, and a hit strip there would steal the scroll's touches. */

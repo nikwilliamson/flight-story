@@ -48,9 +48,7 @@ export function TabDriver() {
     const changed = () => open(location.hash)
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      const store = useStory.getState()
-      if (store.sheet) store.setSheet(null)
-      else clearSelection()
+      clearSelection()
     }
     window.addEventListener('hashchange', changed)
     window.addEventListener('keydown', key)
@@ -66,9 +64,6 @@ export function TabDriver() {
 
 /** One frame of the tabs (what is lit, the fly-to's hold), run by StoryTick after the story. */
 export function stepTabs(delta: number) {
-  // The journey holds still under an open tab: the page doesn't scroll until Journey is back.
-  const locked = useStory.getState().tab !== null ? 'hidden' : ''
-  if (document.documentElement.style.overflow !== locked) document.documentElement.style.overflow = locked
   if (!atEnd()) return
   if (pending) {
     select(pending)

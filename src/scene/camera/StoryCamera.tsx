@@ -5,6 +5,7 @@ import { airports, legs } from '../../data'
 import { latLonToVec3 } from '../../geo'
 import { reducedMotion } from '../../motion'
 import { PACING } from '../../story/pacing'
+import { scroller } from '../../story/scrollState'
 import { STORY_END, timeline } from '../../story/timeline'
 import { useStory, type Shot } from '../../state/store'
 
@@ -126,8 +127,10 @@ export function StoryCamera() {
       state.dragging = pointers.size > 0
     }
     const wheel = (e: WheelEvent) => {
-      // A plain wheel always scrolls the story; a trackpad pinch (ctrl + wheel) zooms the released globe.
-      if (!live() || !e.ctrlKey) return
+      // A plain wheel always scrolls the story (the released globe sits above the story's scroller, so pass it on); a
+      // trackpad pinch (ctrl + wheel) zooms the released globe.
+      if (!e.ctrlKey) return void scroller.el?.scrollBy({ top: e.deltaY * (e.deltaMode === 1 ? 16 : 1) })
+      if (!live()) return
       e.preventDefault()
       state.userTookOver = true
       target.zoom = clampZoom(target.zoom * Math.exp(-e.deltaY * 0.0015))

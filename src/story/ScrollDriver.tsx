@@ -2,13 +2,17 @@ import { useEffect } from 'react'
 import { useStory, type Shot } from '../state/store'
 import { CHAPTERS, type Chapter } from './chapters'
 import { activeAt, progressAt } from './scrollPlan'
-import { planReady, scroll } from './scrollState'
+import { onPlan, planReady, scroll, scrollTop, scrollToY } from './scrollState'
+import type { Plan } from './scrollPlan'
 import { hashParams } from '../hash'
 import { FLIGHT, STORY_END, timeline } from './timeline'
 import { jump } from './jump'
 import { distance } from './distance'
 import { PACING } from './pacing'
 import { ease } from '../motion'
+
+/** Anything the reader does to move the page, which ends a deep link's hold on its chapter. */
+const TAKEOVER = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const
 
 /** Above this many legs of catch-up outside the chapter's range, cut instead of animating. */
 const SNAP_LEGS = 250
@@ -56,12 +60,25 @@ export function ScrollDriver() {
     const at = Math.min(0.999, Math.max(0, Number(hashParams.get('p') ?? 0.999) || 0))
     const index = CHAPTERS.findIndex((c) => c.id === id)
     if (index < 0) return
-    let live = true
-    planReady.then((plan) => {
+    // Cards above it keep growing as their photos and fonts land, which moves the chapter down the page: follow it
+    // until the reader takes over.
+    const go = (plan: Plan) => {
       const seg = plan.segments[index]
-      if (live && seg) window.scrollTo(0, seg.at + 1 + (seg.until - seg.at - 2) * at)
-    })
-    return () => void (live = false)
+      if (seg) scrollToY(seg.at + 1 + (seg.until - seg.at - 2) * at)
+    }
+    let live = true
+    // planReady holds the first plan; by now a later one may have replaced it.
+    planReady.then(() => live && scroll.plan && go(scroll.plan))
+    const off = onPlan(go)
+    const stop = () => {
+      off()
+      for (const e of TAKEOVER) window.removeEventListener(e, stop, true)
+    }
+    for (const e of TAKEOVER) window.addEventListener(e, stop, { capture: true, passive: true })
+    return () => {
+      live = false
+      stop()
+    }
   }, [])
 
   // ← and → step a chapter at a time (the page still scrolls freely): → to the next chapter's start, ← back to the
@@ -74,7 +91,7 @@ export function ScrollDriver() {
       const here = Math.max(0, scroll.active)
       const index = e.key === 'ArrowRight' ? here + 1 : scroll.progress > 0.1 ? here : here - 1
       const seg = scroll.plan.segments[Math.max(0, Math.min(CHAPTERS.length - 1, index))]
-      window.scrollTo({ top: seg.at + 1, behavior: 'smooth' })
+      scrollToY(seg.at + 1, true)
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
@@ -88,7 +105,7 @@ export function stepScroll(delta: number) {
   const plan = scroll.plan
   if (!plan) return
   const dt = Math.min(delta, 0.1)
-  const y = window.scrollY
+  const y = scrollTop()
   // An open tab shows the whole log, as at the story's end, without moving the page (Nik): the journey keeps its
   // place underneath, and closing the tab takes the globe back to it. The lines ease both ways rather than snap.
   const tab = useStory.getState().tab !== null

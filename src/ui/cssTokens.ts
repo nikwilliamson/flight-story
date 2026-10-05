@@ -1,5 +1,5 @@
 import { fonts } from './fonts'
-import { glass, radius, size, space, type, ui } from './tokens'
+import { glass, panel, radius, size, space, type, ui } from './tokens'
 
 // The HTML chrome uses the scene's own type: register the same files the SDF text reads.
 const faces: [string, string, string][] = [
@@ -26,6 +26,7 @@ const vars: Record<string, string | number> = {
   '--chip-rgb': rgb(ui.chip),
   '--edge-rgb': rgb(ui.edge),
   '--glass-fill': glass.fill,
+  '--panel-fill': panel.css,
   '--radius-panel': `${radius.panel}px`,
   '--radius-inner': `${radius.inner}px`,
   '--row': `${size.row}px`,
@@ -35,7 +36,7 @@ const vars: Record<string, string | number> = {
 }
 for (const [k, v] of Object.entries(space)) vars[`--space-${k}`] = `${v}px`
 for (const [name, role] of Object.entries(type)) {
-  const id = name.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
+  const id = name.replace(/[A-Z]+/g, (m) => `-${m.toLowerCase()}`)
   vars[`--${id}`] = `${role.family === 'Story Display' && role.font === fonts.display ? 600 : role.family === 'Story Display' ? 500 : 400} ${role.size}px/${role.line} '${role.family}', system-ui, sans-serif`
   vars[`--${id}-tracking`] = `${role.tracking}em`
 }

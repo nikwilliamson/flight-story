@@ -23,7 +23,8 @@ export function layoutFor(width: number, height: number): Layout {
     return {
       stage: { x: 0, y: 0, width, height: stageHeight },
       card: { x: GUTTER, y: stageHeight + GUTTER, width: width - 2 * GUTTER, height: height - stageHeight - 2 * GUTTER },
-      scale: Math.min(1, width / 430),
+      // Type keeps its size on phones (the audit: 390 px phones were reading 14.5 px body and 9.5 px labels).
+      scale: 1,
       phone: true,
     }
   }

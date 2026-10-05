@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Globe } from './scene/Globe'
 import { Sheet } from './ui/Sheet'
+import { Story } from './ui/Story'
 import { Tabs } from './ui/Tabs'
 import { Fallback, SceneBoundary } from './ui/Fallback'
 import './ui/cssTokens'
@@ -14,10 +15,9 @@ createRoot(document.getElementById('root')!).render(
         <Globe />
       </SceneBoundary>
     </main>
+    <Story />
     <Fallback />
     <Tabs />
     <Sheet />
-    {/* Empty: gives the page its scroll length. The story reads window.scrollY; everything visible is in the canvas. */}
-    <div id="scroll-spacer" />
   </StrictMode>,
 )

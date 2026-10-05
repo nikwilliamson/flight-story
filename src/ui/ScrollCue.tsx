@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import type { Mesh, MeshBasicMaterial } from 'three'
 import { reducedMotion } from '../motion'
 import { useStory } from '../state/store'
+import { scrollTop } from '../story/scrollState'
 import type { Layout } from './layout'
 import { Label, setOpacity } from './Label'
 import { space, type, ui } from './tokens'
@@ -31,7 +32,7 @@ export function ScrollCue({ layout, width, height }: { layout: Layout; width: nu
 
   useFrame(({ clock }, delta) => {
     const { ready, tab } = useStory.getState()
-    const wanted = ready && tab === null ? Math.max(0, 1 - window.scrollY / FADE_PX) : 0
+    const wanted = ready && tab === null ? Math.max(0, 1 - scrollTop() / FADE_PX) : 0
     state.shown += (wanted - state.shown) * Math.min(1, delta * 3)
     const k = reducedMotion() ? 0.5 : (clock.elapsedTime % RUN_S) / RUN_S
     setOpacity(label.current, state.shown * 0.85)
