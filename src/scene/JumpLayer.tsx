@@ -88,6 +88,8 @@ export function JumpLayer() {
   const dpr = useThree((s) => s.viewport.dpr)
   const [atlas, setAtlas] = useState<Texture | null>(null)
   const loading = useRef(false)
+  /** Clock time before which a failed atlas fetch is not retried. */
+  const retryAt = useRef(0)
   const mesh = useRef<Mesh>(null)
   const geometry = useMemo(() => new PlaneGeometry(2, 2), [])
   const material = useMemo(
@@ -119,7 +121,7 @@ export function JumpLayer() {
   useEffect(() => () => atlas?.dispose(), [atlas])
 
   useFrame(({ clock }) => {
-    if (!atlas && !loading.current && scroll.active >= JUMP_INDEX - PRELOAD) {
+    if (!atlas && !loading.current && clock.elapsedTime >= retryAt.current && scroll.active >= JUMP_INDEX - PRELOAD) {
       loading.current = true
       new TextureLoader().load(`${import.meta.env.BASE_URL}jump-atlas.jpg`, (t) => {
         // Raw gray values: the shader treats them as brightness data, not colour.
@@ -127,6 +129,10 @@ export function JumpLayer() {
         t.generateMipmaps = false
         material.uniforms.uAtlas.value = t
         setAtlas(t)
+      }, undefined, () => {
+        // Try again in a few seconds (a dropped connection on the train) rather than never showing the jump.
+        loading.current = false
+        retryAt.current = clock.elapsedTime + 5
       })
     }
     const phase = jumpPhase(jump.progress)
