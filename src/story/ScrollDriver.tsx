@@ -64,6 +64,22 @@ export function ScrollDriver() {
     return () => void (live = false)
   }, [])
 
+  // ← and → step a chapter at a time (the page still scrolls freely): → to the next chapter's start, ← back to the
+  // start of this one, or the one before if this one has barely begun.
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if ((e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+      if (e.target instanceof HTMLInputElement || useStory.getState().tab !== null || !scroll.plan) return
+      e.preventDefault()
+      const here = Math.max(0, scroll.active)
+      const index = e.key === 'ArrowRight' ? here + 1 : scroll.progress > 0.1 ? here : here - 1
+      const seg = scroll.plan.segments[Math.max(0, Math.min(CHAPTERS.length - 1, index))]
+      window.scrollTo({ top: seg.at + 1, behavior: 'smooth' })
+    }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [])
+
   return null
 }
 

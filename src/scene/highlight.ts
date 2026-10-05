@@ -149,3 +149,20 @@ function writeAirports() {
   }
   highlight.airports.needsUpdate = true
 }
+
+/** Replay: the lit set draws itself again in order, slower than the first cascade, never longer than REPLAY_MAX. */
+const REPLAY_STAGGER = 0.18
+const REPLAY_MAX = 8
+
+/** Runs the lit set's cascade again (the selection card's Replay): a trip flies itself in order. */
+export function replayHighlight() {
+  const ordered = [...(applied ?? [])].filter((i) => legs[i]).sort((a, b) => a - b)
+  const step = Math.min(REPLAY_STAGGER, REPLAY_MAX / Math.max(1, ordered.length))
+  ordered.forEach((i, rank) => {
+    current[i] = 0
+    pixels[i * 4] = 0
+    wait[i] = reducedMotion() ? 0 : rank * step
+  })
+  settling = true
+  highlight.texture.needsUpdate = true
+}

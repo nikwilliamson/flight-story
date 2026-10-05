@@ -7,7 +7,7 @@ import { cardTop, planScroll } from '../story/scrollPlan'
 import { setPlan } from '../story/scrollState'
 import { tabBarBottom, type Layout } from './layout'
 import { space } from './tokens'
-import { StoryCard } from './StoryCard'
+import { openingTitle, StoryCard } from './StoryCard'
 import { useStory } from '../state/store'
 
 /**
@@ -49,6 +49,7 @@ export function StoryCards({ layout, viewport }: { layout: Layout; viewport: num
       const top = cardTop(seg, y)
       g.position.set(layout.card.x, -top, 0)
       g.visible = top < viewport && top + seg.height > 0 && !tabOpen
+      if (i === 0) Object.assign(openingTitle, { known: true, x: layout.card.x + openingTitle.dx, y: top + openingTitle.dy })
     })
   })
 

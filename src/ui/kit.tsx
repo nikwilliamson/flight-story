@@ -1,8 +1,10 @@
-import type { ThreeEvent } from '@react-three/fiber'
-import { useState } from 'react'
+import { useFrame, type ThreeEvent } from '@react-three/fiber'
+import { useRef, useState } from 'react'
+import type { Mesh, Object3D } from 'three'
+import { reducedMotion } from '../motion'
 import { textWidth } from './cssTokens'
 import { Glass } from './Glass'
-import { Label } from './Label'
+import { Label, type LabelProps } from './Label'
 import { size, space, type, ui, type Role } from './tokens'
 
 /** The pointer's look over the scene's UI: one place sets it, so nothing leaves it stuck on "pointer". */
@@ -95,13 +97,26 @@ export function layoutPills(items: string[], width: number, s: number, p: PillSi
   return { placed, height: (row + 1) * h + row * gap }
 }
 
+const noRaycast = () => null
+
+/** A row's share of the top row, as a hairline bar along its foot (types, aircraft, airlines). */
+function ShareBar({ x, y, width, s, color }: { x: number; y: number; width: number; s: number; color: typeof ui.ink }) {
+  const h = 1.5 * s
+  return (
+    <mesh position={[x + width / 2, -(y + h / 2), 0.2]} raycast={noRaycast}>
+      <planeGeometry args={[Math.max(width, 1), h]} />
+      <meshBasicMaterial color={color} transparent opacity={0.7} depthTest={false} depthWrite={false} />
+    </mesh>
+  )
+}
+
 export const rowHeight = (detail: boolean, s: number) => (detail ? size.rowDetail : size.row) * s
 
 /**
  * The one list row, in story cards, tab panels and (as CSS) the sheet: a rank, the label with its detail under it, and
  * the count. Lit is white, with a chip behind it.
  */
-export function RankRow({ y, width, s, rank, label, detail, count, lit = false, events }: { y: number; width: number; s: number; rank: number; label: string; detail?: string; count: string; lit?: boolean; events?: HitEvents }) {
+export function RankRow({ y, width, s, rank, label, detail, count, share, faded = false, lit = false, events }: { y: number; width: number; s: number; rank: number; label: string; detail?: string; count: string; share?: number; faded?: boolean; lit?: boolean; events?: HitEvents }) {
   const h = rowHeight(detail !== undefined, s)
   const body = type.body.size * type.body.line * s
   const top = y + (size.row * s - body) / 2
@@ -125,7 +140,48 @@ export function RankRow({ y, width, s, rank, label, detail, count, lit = false, 
       <Label x={width} y={top + mono} role="monoData" s={s} color={lit ? ui.ink : ui.inkDim} align="right">
         {count}
       </Label>
+      {share !== undefined && <ShareBar x={labelX} y={y + h - 2 * s} width={(width - labelX) * share} s={s} color={lit ? ui.ink : faded ? ui.inkFaint : ui.inkDim} />}
       {events && <Hit x={-space.s * s} y={y} width={width + 2 * space.s * s} height={h} {...events} />}
     </group>
+  )
+}
+
+/** Seconds a counted number takes to reach its value. */
+const COUNT_S = 1.4
+const NUMBER = /^(\d{1,3}(,\d{3})*|\d+)(\.\d+)?$/
+
+/** True if the object and everything above it is visible (the story moves cards by toggling their group). */
+const shown = (o: Object3D | null) => {
+  for (let p = o; p; p = p.parent) if (!p.visible) return false
+  return !!o
+}
+
+/**
+ * A number that counts up from zero each time its card comes on screen, then holds. Anything that isn't a plain
+ * number ("1965–2025") is shown as is.
+ */
+export function CountUp({ value, ...label }: Omit<LabelProps, 'children'> & { value: string }) {
+  const ref = useRef<Mesh>(null)
+  const match = NUMBER.exec(value)
+  // Starts at zero so the first frame on screen never flashes the final value.
+  const [text, setText] = useState(() => (match ? (0).toFixed(match[3] ? match[3].length - 1 : 0) : value))
+  const state = useRef({ was: false, t: 0 }).current
+  useFrame((_, delta) => {
+    if (!match) return
+    const now = shown(ref.current)
+    if (now && !state.was) state.t = reducedMotion() ? COUNT_S : 0
+    state.was = now
+    if (state.t >= COUNT_S) return text !== value && setText(value)
+    state.t = Math.min(COUNT_S, state.t + Math.min(delta, 0.1))
+    const k = 1 - (1 - state.t / COUNT_S) ** 3
+    const target = Number(value.replace(/,/g, ''))
+    const decimals = match[3] ? match[3].length - 1 : 0
+    const next = (target * k).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping: value.includes(',') })
+    if (next !== text) setText(next)
+  })
+  return (
+    <Label ref={ref} {...label}>
+      {text}
+    </Label>
   )
 }

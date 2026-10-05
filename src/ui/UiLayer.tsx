@@ -4,6 +4,9 @@ import { useStory } from '../state/store'
 import { layoutFor, tabBarBottom } from './layout'
 import { space } from './tokens'
 import { Rail } from './Rail'
+import { GlobeLabels } from './GlobeLabels'
+import { ScrollCue } from './ScrollCue'
+import { SelectionCard } from './SelectionCard'
 import { Loader } from './Loader'
 import { ScreenLayer } from './ScreenLayer'
 import { StoryCards } from './StoryCards'
@@ -32,6 +35,9 @@ export function UiLayer() {
       <ScreenLayer priority={3}>
         {journey && <StoryHud stage={layout.stage} s={layout.scale} phone={layout.phone} />}
         {journey && <Rail width={width} height={height} phone={layout.phone} />}
+        <ScrollCue layout={layout} width={width} height={height} />
+        <GlobeLabels layout={layout} />
+        <SelectionCard layout={layout} width={width} />
       </ScreenLayer>
       <ScreenLayer priority={4}>
         <Loader />

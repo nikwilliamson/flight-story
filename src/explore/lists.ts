@@ -99,3 +99,42 @@ export const CHIPS: ListRow[] = (() => {
 })()
 
 for (const chip of CHIPS) ROWS.set(chip.id, chip)
+
+/** Each airport's row, by airport index, for picking airports straight off the globe. */
+export const AIRPORT_ROWS = new Map(airportGroups.map((g, k) => [Number(g.key), LISTS.airports.rows[k]]))
+
+/** A stretch of the log flown from one home airport. */
+export interface HomeRow extends ListRow {
+  /** Years as decimals, for laying the stretch out on a timeline. */
+  from: number
+  to: number
+}
+
+const yearOf = (sort: string) => Number(sort.slice(0, 4)) + (sort.length >= 7 ? (Number(sort.slice(5, 7)) - 1) / 12 : 0)
+
+/**
+ * Where he flew from, as stretches of the log. Only from the move to Fort Lauderdale on: the build derives earlier
+ * homes from each year's busiest airport, which is a guess, not something to show as fact.
+ */
+export const HOMES: HomeRow[] = (() => {
+  const start = legs.findIndex((l) => l.home >= 0 && airports[l.home].code === 'FLL')
+  const out: HomeRow[] = []
+  for (let i = Math.max(0, start); i < legs.length; i++) {
+    const l = legs[i]
+    const last = out.at(-1)
+    if (last && l.home === legs[last.legs[0]].home) (last.legs as number[]).push(i)
+    else if (l.home >= 0) {
+      const a = airports[l.home]
+      out.push({ id: `home-${slug(a.code)}-${l.sort.slice(0, 4)}`, label: `${a.code} · ${a.city}`, count: 0, legs: [i], from: yearOf(l.sort), to: 0 })
+    }
+  }
+  out.forEach((h, k) => {
+    h.count = h.legs.length
+    h.to = out[k + 1]?.from ?? yearOf(legs[legs.length - 1].sort) + 1
+    const end = k + 1 < out.length ? String(Math.floor(h.to)) : 'now'
+    h.detail = `${Math.floor(h.from)}–${end}`
+  })
+  return out
+})()
+
+for (const home of HOMES) ROWS.set(home.id, home)

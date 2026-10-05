@@ -8,7 +8,7 @@ import { Surface } from './Surface'
 import { Outlines } from './Outlines'
 import { Earth } from './Earth'
 import { Scattering } from './Scattering'
-import { Backdrop, Stars } from './Stars'
+import { Backdrop, Dust, Stars } from './Stars'
 import { Arcs } from './Arcs'
 import { Airports } from './Airports'
 import { camera as storyCamera, StoryCamera } from './camera/StoryCamera'
@@ -78,6 +78,7 @@ export function Globe() {
       />
       <Backdrop />
       <Stars />
+      <Dust />
       {/* #classic shows the stylized glow alone, for comparison with the physical scattering. */}
       <Earth gain={hashParams.has('classic') ? 1 : CLASSIC_GAIN} />
       {!hashParams.has('classic') && <Scattering />}

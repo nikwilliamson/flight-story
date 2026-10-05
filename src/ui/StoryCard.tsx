@@ -9,6 +9,18 @@ import { space, type, ui } from './tokens'
 const PADDING = space.xl
 const MILLION = '1,000,000'
 
+/** The title's colours: the million in the accent. The loader draws the opening title with the same ones. */
+export function titleRanges(title: string) {
+  const million = title.indexOf(MILLION)
+  return million >= 0 ? { 0: ui.ink, [million]: ui.accent, [million + MILLION.length]: ui.ink } : undefined
+}
+
+/**
+ * Where the opening card's title sits on screen once laid out (known), so the loader can draw it in the same place
+ * and lift away around it: the match cut from the loading screen into the story.
+ */
+export const openingTitle = { known: false, x: 0, y: 0, width: 0, s: 1, dx: 0, dy: 0 }
+
 interface Props {
   chapter: CardContent
   width: number
@@ -25,7 +37,6 @@ export const StoryCard = forwardRef<Group, Props>(function StoryCard({ chapter, 
   const pad = bare ? 0 : PADDING * s
   const inner = width - 2 * pad
   const rows: Row[] = useMemo(() => {
-    const million = chapter.title.indexOf(MILLION)
     return [
       { gap: 0, height: type.monoLabel.size * type.monoLabel.line * s, render: (y) => <Label y={y} role="monoLabel" s={s} color={ui.inkDim}>{chapter.eyebrow}</Label> },
       textRow(chapter.title, {
@@ -34,7 +45,7 @@ export const StoryCard = forwardRef<Group, Props>(function StoryCard({ chapter, 
         role: opening ? 'displayXL' : 'displayL',
         s,
         color: ui.ink,
-        colorRanges: million >= 0 ? { 0: ui.ink, [million]: ui.accent, [million + MILLION.length]: ui.ink } : undefined,
+        colorRanges: titleRanges(chapter.title),
       }),
       textRow(chapter.body, { gap: space.l * s, width: inner, role: 'body', s, color: ui.inkDim }),
       ...chapter.modules.map((m) => moduleRow(m, inner, s)),
@@ -52,6 +63,7 @@ export const StoryCard = forwardRef<Group, Props>(function StoryCard({ chapter, 
   })
   const total = cursor + (bare ? space.m * s : pad)
   const ready = heights.every((h) => h !== undefined)
+  if (opening) Object.assign(openingTitle, { dx: pad, dy: tops[1], width: inner, s })
   useEffect(() => {
     if (ready) onHeight(total)
   }, [ready, total, onHeight])

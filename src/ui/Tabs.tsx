@@ -1,5 +1,6 @@
-import { useEffect, useRef, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { backToStory, openTab, TABS } from '../explore/explore'
+import { opensTab } from '../explore/TabDriver'
 import { useStory } from '../state/store'
 import { layoutFor, tabBarTop, useViewport } from './layout'
 
@@ -17,6 +18,15 @@ export function Tabs() {
   const { width, height } = useViewport()
   const layout = layoutFor(width, height)
   const bar = useRef<HTMLElement>(null)
+  // Someone arriving on a share link lands in a tab and may never find the story behind it: Journey invites them in
+  // until they've been there once.
+  const [invite, setInvite] = useState(() => opensTab(location.hash))
+  const seen = useRef(tab)
+  useEffect(() => {
+    // Cleared on the way back from a tab, not before the share link has opened one.
+    if (seen.current !== null && tab === null) setInvite(false)
+    seen.current = tab
+  }, [tab])
   // Keep the open tab in view on phones, where the row scrolls.
   useEffect(() => {
     bar.current?.querySelector<HTMLElement>('.on')?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' })
@@ -29,15 +39,16 @@ export function Tabs() {
     <nav ref={bar} className={layout.phone ? 'tabs phone' : 'tabs'} style={style} aria-label="Views">
       {BAR.map((t) => {
         const active = tab === t.id
+        const inviting = invite && t.id === null
         return (
           <button
             key={t.label}
-            className={active ? 'pill on' : 'pill'}
+            className={active ? 'pill on' : inviting ? 'pill invite' : 'pill'}
             aria-current={active ? 'page' : undefined}
             // Journey, or the open tab again, closes it, back to the journey where the reader left it.
             onClick={() => (t.id === null || active ? backToStory() : openTab(t.id))}
           >
-            {t.label}
+            {inviting ? 'Start the journey' : t.label}
           </button>
         )
       })}

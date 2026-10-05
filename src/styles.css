@@ -42,6 +42,9 @@ html::-webkit-scrollbar { display: none; }
 }
 .pill:hover, .pill.on { color: var(--ink); background: rgb(var(--chip-rgb) / 0.95); }
 .pill.on { box-shadow: 0 0 18px rgb(var(--edge-rgb) / 0.16); }
+.pill.invite { color: var(--ink); animation: invite 2.4s ease-in-out infinite; }
+@keyframes invite { 50% { box-shadow: 0 0 22px rgb(var(--edge-rgb) / 0.35); border-color: rgb(var(--edge-rgb) / 0.5); } }
+@media (prefers-reduced-motion: reduce) { .pill.invite { animation: none; } }
 .pill:focus-visible { outline: 1px solid rgb(var(--edge-rgb) / 0.8); outline-offset: 2px; }
 
 .tabs {
@@ -116,6 +119,18 @@ html::-webkit-scrollbar { display: none; }
 
 /* The log: a leg per row, its route in its own colour as on the globe. */
 .sheet-log li { display: grid; grid-template-columns: 1fr auto; gap: 0 var(--space-m); padding: var(--space-s); }
+.sheet-log li.year {
+  position: sticky;
+  top: calc(-1 * var(--space-s));
+  z-index: 1;
+  display: block;
+  padding: var(--space-m) var(--space-s) var(--space-xs);
+  font: var(--display-m);
+  color: var(--ink);
+  cursor: default;
+  background: linear-gradient(rgb(var(--glass-rgb) / 0.96) 70%, rgb(var(--glass-rgb) / 0));
+}
+.sheet-log li.year:hover { background: linear-gradient(rgb(var(--glass-rgb) / 0.96) 70%, rgb(var(--glass-rgb) / 0)); }
 .sheet-log .when { font: var(--mono-data); color: var(--ink-dim); grid-column: 1 / -1; }
 .sheet-log .route { font: var(--display-s); color: var(--ink); }
 .sheet-log .route.domestic { color: var(--domestic); }

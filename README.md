@@ -26,6 +26,11 @@ Every push to `main` builds and deploys to GitHub Pages (`.github/workflows/depl
 After the story the tabs take over (Explore, Trips, Airports, Planes, Airlines, Log). Each tab and every row has a link:
 `#trips`, `#log`, `#trip-266`, `#airport-mco`, `#plane-g-virg`, `#family-b747`, `#airline-ua`, `#decade-1990`, `#leg-1385`.
 Opening one goes straight to the end of the story, opens its tab and flies the globe to it.
+Home stretches have links too (`#home-kix-2000`). A visitor who arrives on a link sees Journey as "Start the journey" until they've been to the story.
+
+## Keys
+- `→` / `←` step a chapter at a time; the page still scrolls freely.
+- `Esc` closes the sheet, then clears the selection.
 
 ## Debug hash params
 - `#ch=hockey` scrolls to the end of a chapter (ids in `src/story/chapters.ts`); `#ch=jump&p=0.5` stops part-way through.

@@ -22,6 +22,8 @@ export type Module =
   | { kind: 'list'; label: string; list: ListId; top: number }
   /** After the story: filter chips that light and fly like list rows. */
   | { kind: 'filters'; label: string; chips: ListRow[] }
+  /** After the story: where he flew from, as a timeline whose stretches light like list rows. */
+  | { kind: 'homes'; label: string }
 
 /** An airframe card: what it was, how old, where he flew it, and its story if it has one. */
 export interface Plane {

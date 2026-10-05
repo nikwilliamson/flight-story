@@ -35,7 +35,10 @@ export function panelFor(tab: Exclude<TabId, 'log'>, phone: boolean): CardConten
         eyebrow: 'Airports',
         title: `${fmt(LISTS.airports.rows.length)} airports`,
         body: `Every field he flew in or out of, by legs. ${LIGHT}`,
-        modules: [{ kind: 'list', label: 'Most visited', list: 'airports', top }],
+        modules: [
+          { kind: 'homes', label: 'Home airports' },
+          { kind: 'list', label: 'Most visited', list: 'airports', top: phone ? 4 : 8 },
+        ],
       }
     case 'planes':
       return {

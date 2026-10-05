@@ -10,13 +10,19 @@ import { ROWS, type ListRow } from './lists'
 const NONE: readonly number[] = []
 
 /** #leg-1385 opens the log on that leg. */
-function rowFor(id: string): ListRow | undefined {
+export function rowFor(id: string): ListRow | undefined {
   const leg = /^leg-(\d+)$/.exec(id)
   if (leg) {
     const i = Number(leg[1]) - 1
     return legs[i] ? { id, label: `Leg ${leg[1]}`, count: 1, legs: [i] } : undefined
   }
   return ROWS.get(id)
+}
+
+/** True when the hash is a share link that opens a tab (#trips, #trip-266, #leg-1385), not a debug flag. */
+export function opensTab(hash: string) {
+  const id = shareIdOf(hash)
+  return !!id && (TABS.some((t) => t.id === id) || !!rowFor(id))
 }
 
 /**

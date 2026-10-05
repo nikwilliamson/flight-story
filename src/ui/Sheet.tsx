@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { Fragment, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { TYPE_NAMES } from '../content/aircraft'
 import { airports, legs } from '../data'
 import { fmt } from '../data/facts'
@@ -31,6 +31,7 @@ const LOG = legs.map((l, i) => {
   const row: ListRow = { id: `leg-${l.id}`, label: route, count: 1, legs: [i] }
   return {
     row,
+    year: l.sort.slice(0, 4),
     date: legDate(l),
     route,
     places: `${city(l.from)} to ${city(l.to)}`,
@@ -103,14 +104,22 @@ export function Sheet() {
         {count === 0 && <p className="sheet-empty">{`Nothing matches “${query.trim()}”. Try a city, an airline or a year.`}</p>}
         {sheet === 'log' ? (
           <ol className="sheet-log">
-            {log.map((r) => (
-              <li key={r.row.id} className={selected === r.row.id ? 'on' : ''} onMouseEnter={() => hover(r.row)} onClick={() => select(r.row)}>
-                <span className="when">{r.date}</span>
-                <span className={`route ${r.scope}`}>{r.route}</span>
-                <span className="miles">{fmt(r.miles)}</span>
-                <span className="places">{r.places}</span>
-                <span className="craft">{[r.airline, r.aircraft].filter(Boolean).join(' · ')}</span>
-              </li>
+            {log.map((r, i) => (
+              <Fragment key={r.row.id}>
+                {/* A year header wherever the year turns, pinned while its legs scroll under it. */}
+                {r.year !== log[i - 1]?.year && (
+                  <li className="year" aria-hidden>
+                    {r.year}
+                  </li>
+                )}
+                <li className={selected === r.row.id ? 'on' : ''} onMouseEnter={() => hover(r.row)} onClick={() => select(r.row)}>
+                  <span className="when">{r.date}</span>
+                  <span className={`route ${r.scope}`}>{r.route}</span>
+                  <span className="miles">{fmt(r.miles)}</span>
+                  <span className="places">{r.places}</span>
+                  <span className="craft">{[r.airline, r.aircraft].filter(Boolean).join(' · ')}</span>
+                </li>
+              </Fragment>
             ))}
           </ol>
         ) : (

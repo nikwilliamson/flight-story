@@ -4,8 +4,8 @@ import type { Module, Plane } from '../story/chapters'
 import { textWidth } from './cssTokens'
 import { Glass } from './Glass'
 import { Label } from './Label'
-import { FilterChips, filtersHeight, ListModule, listHeight } from './interactive'
-import { headHeight, layoutPills, Pill, RankRow, rowHeight, SectionLabel } from './kit'
+import { FilterChips, filtersHeight, HomesTimeline, homesHeight, ListModule, listHeight } from './interactive'
+import { CountUp, headHeight, layoutPills, Pill, RankRow, rowHeight, SectionLabel } from './kit'
 import { creditHeight, PHOTO_ASPECT, PlanePhoto } from './PlanePhoto'
 import { radius, space, type, ui, type Role } from './tokens'
 
@@ -58,9 +58,7 @@ export function moduleRow(m: Module, width: number, s: number): Row {
                   <Label x={cx} y={cy} role="monoLabel" s={s} color={ui.inkDim}>
                     {k}
                   </Label>
-                  <Label x={cx} y={cy + lineOf('monoLabel', s) + space.xs * s} role="displayM" s={s} color={ui.ink}>
-                    {v}
-                  </Label>
+                  <CountUp x={cx} y={cy + lineOf('monoLabel', s) + space.xs * s} role="displayM" s={s} color={ui.ink} value={v} />
                 </group>
               )
             })}
@@ -173,6 +171,8 @@ export function moduleRow(m: Module, width: number, s: number): Row {
       return { gap, height: listHeight(m.list, m.top, s), render: (y) => <ListModule y={y} width={width} s={s} label={m.label} list={m.list} top={m.top} /> }
     case 'filters':
       return { gap, height: filtersHeight(m.chips, width, s), render: (y) => <FilterChips y={y} width={width} s={s} label={m.label} chips={m.chips} /> }
+    case 'homes':
+      return { gap, height: homesHeight(s), render: (y) => <HomesTimeline y={y} width={width} s={s} label={m.label} /> }
     case 'nights': {
       const cols = 10
       const spacing = space.xs * s
