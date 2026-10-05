@@ -13,8 +13,8 @@ import { Label } from './Label'
 import { fonts } from './fonts'
 import { ui } from './tokens'
 
-/** Room kept clear above and below the rail, px. */
-const MARGIN = 60
+/** Keys run this far past the screen's edge so their round ends are cut off and they sit flush with it, px. */
+const OVERHANG = 2
 /** Closest two flight keys may sit, px: flights closer than this share a key. */
 const PITCH = 3
 /** Key lengths, px: a flight, a scroll item, and the extra swell at the playhead. */
@@ -28,9 +28,8 @@ const SWELL = 14
 const REACH = 26
 /** Key thickness, px. */
 const THICK = 1.6
-/** Fun-fact dots: diameter, and gap left of their key's tip, px. */
-const FACT_DOT = 4
-const FACT_GAP = 6
+/** A fun fact's key: longer than a flight's, so the facts stand out among them, px. */
+const FACT = 13
 /** How fast keys ease to their size and the rails swap, per second. */
 const KEY_RATE = 12
 const SWAP_RATE = 2.2
@@ -54,17 +53,16 @@ interface Key {
   /** Flight keys: first leg index and how many legs share the key. Event keys: their number, from 0. */
   leg: number
   count: number
-  intl: boolean
   /** Event keys: how much of a whole lap or half-trip this key is (the last one is partial). */
   part: number
   text?: string
 }
 
-const key = (k: Partial<Key> & Pick<Key, 'kind' | 'at' | 'chapter'>): Key => ({ until: k.at, leg: -1, count: 0, intl: false, part: 1, ...k })
+const key = (k: Partial<Key> & Pick<Key, 'kind' | 'at' | 'chapter'>): Key => ({ until: k.at, leg: -1, count: 0, part: 1, ...k })
 
 /**
  * The story's scroll as keys: one per flight (shared where flights are closer than PITCH) where the scroll draws
- * it, one block per scroll item as tall as its scroll, and a dot per fun fact spread through its chapter.
+ * it, one block per scroll item as tall as its scroll, and a longer key per fun fact spread through its chapter.
  */
 function storyKeys(plan: Plan, span: number): Key[] {
   const toY = (s: number) => (s / Math.max(1, plan.length)) * span
@@ -83,11 +81,10 @@ function storyKeys(plan: Plan, span: number): Key[] {
         const last = keys.at(-1)
         if (last?.kind === 'flight' && last.chapter === i && toY(at) - row < PITCH) {
           last.count++
-          last.intl ||= !!legs[leg].intl
           continue
         }
         row = toY(at)
-        keys.push(key({ kind: 'flight', at, chapter: i, leg, count: 1, intl: !!legs[leg].intl }))
+        keys.push(key({ kind: 'flight', at, chapter: i, leg, count: 1 }))
       }
     }
     const facts = ch.modules.flatMap((m) => (m.kind === 'fact' ? [m.text] : []))
@@ -139,7 +136,7 @@ const fragmentShader = /* glsl */ `
   varying vec4 vColor;
   varying float vSoft;
   void main() {
-    // A capsule: a rounded box whose radius is half its short side, so keys have round ends and dots are round.
+    // A capsule: a rounded box whose radius is half its short side, so keys have round ends.
     float r = min(vHalf.x, vHalf.y);
     vec2 q = abs(vP) - vHalf + r;
     float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
@@ -154,18 +151,19 @@ const colour = new Color()
 
 /**
  * The scroll as piano keys down the right edge, laid out by scroll distance so each part takes the room its scroll
- * does. Through the story: a key per flight, lit in its route colour once the scroll draws it; a block per aside,
- * the jump and the distance chapters, as tall as their scroll and filling as it runs; an amber dot per fun fact. In
+ * does. Through the story: a key per flight, lit once the scroll draws it; a block per aside,
+ * the jump and the distance chapters, as tall as their scroll and filling as it runs, and a longer key per fun fact. In
  * the Earth laps and the Moon trips the rail swaps, rippling out from the playhead, for that chapter's own keys over
- * the whole height: a key per lap, a block per leg of each Moon trip. Keys swell and glow round the playhead. Hover
+ * the whole height: a key per lap, a block per leg of each Moon trip. All white, flush with the screen's right edge. Keys swell and glow round the playhead. Hover
  * names a key; click scrolls there.
  */
 export function Rail({ width, height, phone }: { width: number; height: number; phone: boolean }) {
   const [hover, setHover] = useState<{ key: Key; y: number } | null>(null)
   const [counter, setCounter] = useState<{ text: string; y: number } | null>(null)
-  const top = phone ? 96 : MARGIN
-  const span = height - top - (phone ? 72 : MARGIN)
-  const right = width - (phone ? 6 : 18)
+  // Flush with the viewport: the right edge, top to bottom (a hair in, so the end keys aren't half cut).
+  const top = 1
+  const span = height - 2
+  const right = width + OVERHANG
   const scale = phone ? 0.65 : 1
   const state = useRef({
     plan: null as Plan | null,
@@ -251,18 +249,9 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
         const alpha = v * v * (3 - 2 * v)
         const edge = right + (1 - alpha) * SLIDE
 
-        if (k.kind === 'fact') {
-          const lit = k.at <= y + 1
-          const x = edge - (FLIGHT + SWELL * s) * scale - FACT_GAP - FACT_DOT / 2
-          colour.copy(lit ? ui.international : ui.inkDim)
-          put(x, ky, FACT_DOT * scale, FACT_DOT * scale, colour, alpha * (lit ? 1 : 0.55))
-          if (lit) put(x, ky, FACT_DOT * scale, FACT_DOT * scale, colour, alpha * (0.2 + 0.4 * s), HALO)
-          return
-        }
-
         const block = k.kind === 'item' || k.kind === 'trip'
         if (block) {
-          const w = (BLOCK + BLOCK_SWELL * s) * scale
+          const w = (BLOCK + BLOCK_SWELL * s) * scale + OVERHANG
           // A block as tall as its scroll (less a gap between trips), filling top-down as it runs.
           const h = Math.max(THICK, y1 - ky - (k.kind === 'trip' ? 6 : 1))
           const fill = k.kind === 'trip' ? Math.min(1, Math.max(0, progress - k.leg) / k.part) : Math.min(1, Math.max(0, (y - k.at) / Math.max(1, k.until - k.at)))
@@ -274,23 +263,23 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
           return
         }
 
-        const w = ((k.kind === 'lap' ? ITEM - 2 : FLIGHT) + SWELL * s) * scale * (k.kind === 'lap' ? 0.4 + 0.6 * k.part : 1)
-        // A key: its route colour once drawn (flights) or white once run (laps); the current lap fills from the edge.
+        const w = ((k.kind === 'lap' ? ITEM - 2 : k.kind === 'fact' ? FACT : FLIGHT) + SWELL * s) * scale * (k.kind === 'lap' ? 0.4 + 0.6 * k.part : 1)
+        // A key: lit once drawn (flights) or run (laps); the current lap fills from the edge.
         const h = THICK * (1 + 0.35 * s)
         const lit = k.kind === 'lap' ? Math.min(1, Math.max(0, progress - k.leg) / k.part) : k.at <= y + 1 ? 1 : 0
-        if (lit < 1) put(edge - w / 2, ky, w, h, colour.copy(ui.inkFaint), alpha * (0.6 + 0.3 * s))
+        if (lit < 1) put(edge - w / 2, ky, w, h, colour.copy(ui.inkDim), alpha * (0.4 + 0.4 * s))
         if (lit > 0) {
-          colour.copy(k.kind === 'lap' ? ui.ink : k.intl ? ui.international : ui.domestic)
+          colour.copy(ui.ink)
           put(edge - (w * lit) / 2, ky, w * lit, h, colour, alpha * (0.75 + 0.25 * s))
           if (s > 0.05) put(edge - (w * lit) / 2, ky, w * lit, h, colour, alpha * s * 0.45, HALO)
         }
       })
     }
 
-    // The playhead: a small glowing bead beside the keys.
-    const bx = right + 7 * scale
-    put(bx, state.head, 4 * scale, 4 * scale, colour.copy(ui.ink), 1)
-    put(bx, state.head, 4 * scale, 4 * scale, colour, 0.5, HALO + 2)
+    // The playhead: one key longer and brighter than the rest, glowing.
+    const pw = (ITEM + SWELL + 6) * scale
+    put(right - pw / 2, state.head, pw, 2, colour.copy(ui.ink), 1)
+    put(right - pw / 2, state.head, pw, 2, colour, 0.45, HALO + 2)
 
     geometry.instanceCount = n
     for (const a of Object.values(attrs)) a.needsUpdate = true
@@ -317,7 +306,7 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
       const seg = plan.segments[k.chapter]
       return top + ((at - seg.at) / Math.max(1, seg.until - seg.at)) * span
     }
-    // Blocks cover their whole scroll; otherwise the nearest key, facts winning near-ties so their dots can be hit.
+    // Blocks cover their whole scroll; otherwise the nearest key, facts winning near-ties so they can be hit among the flights.
     const inside = keys.find((k) => k.until > k.at && py >= toY(k, k.at) && py <= toY(k, k.until))
     if (inside) return { key: inside, y: toY(inside, inside.at) }
     const d = (k: Key) => Math.abs(toY(k, k.at) - py) - (k.kind === 'fact' ? PITCH : 0)
@@ -343,13 +332,13 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
 
   /** Phones have no hover, and a hit strip there would steal the scroll's touches. */
   const hitWidth = phone ? 0 : 48
-  const labelX = right - (ITEM + SWELL) * scale - 12
+  const labelX = width - (ITEM + SWELL + 6) * scale - 10
   return (
     <group>
       <mesh geometry={geometry} material={material} frustumCulled={false} renderOrder={5} raycast={() => null} />
       {hitWidth > 0 && (
-        <mesh position={[right + 10 - hitWidth / 2, -(top + span / 2), 1]} onPointerMove={move} onPointerOut={leave} onClick={click}>
-          <planeGeometry args={[hitWidth, span + 16]} />
+        <mesh position={[width - hitWidth / 2, -(top + span / 2), 1]} onPointerMove={move} onPointerOut={leave} onClick={click}>
+          <planeGeometry args={[hitWidth, span]} />
           <meshBasicMaterial visible={false} />
         </mesh>
       )}
