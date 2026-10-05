@@ -18,6 +18,8 @@ export function UiLayer() {
   const { width, height } = useThree((s) => s.size)
   const layout = useMemo(() => layoutFor(width, height), [width, height])
   useEffect(() => useStory.getState().setStage(layout.stage), [layout])
+  // The readout and the rail belong to the journey (Nik): an open tab has neither.
+  const journey = useStory((s) => s.tab === null)
 
   return (
     <>
@@ -28,8 +30,8 @@ export function UiLayer() {
       </ScreenLayer>
       <ScreenLayer priority={3}>
         <TabBar layout={layout} />
-        <StoryHud stage={layout.stage} s={layout.scale} phone={layout.phone} />
-        <Rail width={width} height={height} phone={layout.phone} />
+        {journey && <StoryHud stage={layout.stage} s={layout.scale} phone={layout.phone} />}
+        {journey && <Rail width={width} height={height} phone={layout.phone} />}
       </ScreenLayer>
       <ScreenLayer priority={4}>
         <Loader />

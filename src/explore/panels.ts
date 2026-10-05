@@ -15,7 +15,6 @@ export function panelFor(tab: Exclude<TabId, 'log'>, phone: boolean): CardConten
         modules: [
           { kind: 'filters', label: 'Decades', chips: CHIPS.filter((c) => c.id.startsWith('decade')) },
           { kind: 'filters', label: 'Domestic and international', chips: CHIPS.filter((c) => c.id.startsWith('scope')) },
-          { kind: 'list', label: 'Most visited airports', list: 'airports', top: phone ? 3 : 5 },
         ],
       }
     case 'trips':
