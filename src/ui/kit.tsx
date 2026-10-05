@@ -97,9 +97,16 @@ export function layoutPills(items: string[], width: number, s: number, p: PillSi
   return { placed, height: (row + 1) * h + row * gap }
 }
 
-/** A row's share of the top row, as a faint bar behind it (types, aircraft, airlines): the list reads as a chart. */
-function ShareBar({ x, y, width, height, radius, faded }: { x: number; y: number; width: number; height: number; radius: number; faded: boolean }) {
-  return <Glass x={x} y={y} width={Math.max(width, radius * 2)} height={height} radius={radius} glow={0} fill={faded ? 0.18 : 0.35} color={ui.chip} />
+const noRaycast = () => null
+
+/** A row's share of the top row, as a faint flat bar behind it (types, aircraft, airlines): the list reads as a chart. */
+function ShareBar({ x, y, width, height, faded }: { x: number; y: number; width: number; height: number; faded: boolean }) {
+  return (
+    <mesh position={[x + width / 2, -(y + height / 2), 0.1]} raycast={noRaycast}>
+      <planeGeometry args={[Math.max(width, 1), height]} />
+      <meshBasicMaterial color={ui.chip} transparent opacity={faded ? 0.25 : 0.5} depthTest={false} depthWrite={false} />
+    </mesh>
+  )
 }
 
 export const rowHeight = (detail: boolean, s: number) => (detail ? size.rowDetail : size.row) * s
@@ -117,7 +124,7 @@ export function RankRow({ y, width, s, rank, label, detail, count, share, faded 
   const labelX = size.rank * s
   return (
     <group>
-      {share !== undefined && !lit && <ShareBar x={labelX - space.s * s} y={y + space.xs * s / 2} width={(width - labelX + 2 * space.s * s) * share} height={h - space.xs * s} radius={space.s * s} faded={faded} />}
+      {share !== undefined && !lit && <ShareBar x={labelX - space.s * s} y={y + space.xs * s / 2} width={(width - labelX + 2 * space.s * s) * share} height={h - space.xs * s} faded={faded} />}
       {lit && <Glass x={-space.s * s} y={y} width={width + 2 * space.s * s} height={h} radius={space.s * s} glow={0} fill={0.7} color={ui.chip} />}
       <Label x={0} y={top + mono} role="monoData" s={s} color={lit ? ui.ink : ui.inkFaint}>
         {String(rank).padStart(2, '0')}
