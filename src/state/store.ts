@@ -64,7 +64,8 @@ export const useStory = create<State>()((set) => ({
   sheet: null,
   hover: null,
   selection: null,
-  setTab: (tab) => set({ tab, sheet: tab === 'log' ? 'log' : null, hover: null }),
+  // Changing tabs drops whatever was lit (Nik).
+  setTab: (tab) => set({ tab, sheet: tab === 'log' ? 'log' : null, hover: null, selection: null }),
   setSheet: (sheet) => set({ sheet, hover: null }),
   setHover: (hover) => set({ hover }),
   setSelection: (selection) => set({ selection }),

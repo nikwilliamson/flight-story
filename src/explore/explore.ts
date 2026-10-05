@@ -32,6 +32,7 @@ export const atEnd = () => scroll.active === CHAPTERS.length - 1
 /** Opens a tab from anywhere: the tabs are always on (Nik). The journey keeps its place; the globe shows the whole log. */
 export function openTab(tab: TabId) {
   useStory.getState().setTab(tab)
+  flight.shot = null
   history.replaceState(null, '', `#${tab}`)
 }
 

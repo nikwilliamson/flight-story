@@ -6,6 +6,7 @@ import { useStory } from '../state/store'
 import { Glass } from './Glass'
 import { Hit, bodyWidth } from './interactive'
 import { Label } from './Label'
+import { RAIL_REACH } from './Rail'
 import type { Layout } from './layout'
 import { ui } from './tokens'
 
@@ -13,6 +14,9 @@ const HEIGHT = 32
 const SPACING = 6
 /** How far the bar rises as it slides in. */
 const SLIDE = 24
+
+/** The year readout's widest line, so centred tabs never run under it. */
+const HUD_WIDTH = 230
 
 export const tabBarBottom = (layout: Layout) => (layout.phone ? layout.stage.height - 8 : 24 + HEIGHT * layout.scale)
 
@@ -29,7 +33,9 @@ export function TabBar({ layout }: { layout: Layout }) {
   const shown = useRef(0)
   const tab = useStory((st) => st.tab)
   const [over, setOver] = useState<string | null>(null)
-  const room = layout.phone ? layout.stage.width - 16 : layout.card.width
+  // Centred on the page. Desktop keeps both sides clear of the year readout and the rail at the top right.
+  const page = layout.stage.x + layout.stage.width
+  const room = page - (layout.phone ? 16 : 2 * (RAIL_REACH + HUD_WIDTH))
   // Shrink to fit the row (phones): text, padding and gaps scale together.
   const natural = BAR.reduce((sum, t) => sum + bodyWidth(t.label, 13 * s) + 26 * s, 0) + SPACING * s * (BAR.length - 1)
   const k = Math.min(1, room / natural)
@@ -39,7 +45,7 @@ export function TabBar({ layout }: { layout: Layout }) {
   const h = HEIGHT * s
   const widths = BAR.map((t) => bodyWidth(t.label, size) + 2 * pad)
   const total = widths.reduce((a, b) => a + b, 0) + gap * (BAR.length - 1)
-  const x0 = layout.phone ? Math.max(8, (layout.stage.width - total) / 2) : layout.card.x
+  const x0 = Math.max(8, (page - total) / 2)
   const y0 = layout.phone ? layout.stage.height - h - 8 * s : 24
 
   useFrame((_, delta) => {
