@@ -10,7 +10,7 @@ import { distance, LAPS, MOON_TRIPS } from '../story/distance'
 import type { Plan } from '../story/scrollPlan'
 import { scroll } from '../story/scrollState'
 import { Label } from './Label'
-import { fonts } from './fonts'
+import { pointer } from './kit'
 import { ui } from './tokens'
 
 /** Keys run this far past the screen's edge so their round ends are cut off and they sit flush with it, px. */
@@ -294,12 +294,12 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
     state.pointer = -e.point.y - top
     const found = keyAt(-e.point.y)
     setHover((h) => (h?.key === found?.key ? h : found))
-    document.body.style.cursor = 'pointer'
+    pointer(true)
   }
   const leave = () => {
     state.pointer = null
     setHover(null)
-    document.body.style.cursor = ''
+    pointer(false)
   }
   const click = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation()
@@ -320,12 +320,12 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
         </mesh>
       )}
       {counter && !hover && (
-        <Label x={labelX} y={top + counter.y - 7} size={phone ? 9 : 10.5} color={ui.ink} font={fonts.mono} align="right" letterSpacing={0.08} nowrap>
+        <Label x={labelX} y={top + counter.y - 7} role="monoLabel" s={phone ? 0.85 : 1} color={ui.ink} align="right" nowrap>
           {counter.text}
         </Label>
       )}
       {hover && (
-        <Label x={labelX} y={hover.y - 7} size={11} color={ui.ink} font={fonts.mono} align="right" nowrap>
+        <Label x={labelX} y={hover.y - 7} role="monoData" color={ui.ink} align="right" nowrap>
           {labelFor(hover.key, hover.track)}
         </Label>
       )}

@@ -11,6 +11,8 @@ export const palette = {
   /** Warm sodium-white city lights (Nik: warmer). */
   lights: new Color('#ffe9cf'),
   airport: new Color('#f4f8ff'),
+  /** Routes outside a lit set drain toward this, so the white of the set reads against grey. */
+  slate: new Color('#3a4a66'),
   domestic: new Color('#4cc9ff'),
   international: new Color('#ffb54a'),
   home: new Color('#ffb54a'),

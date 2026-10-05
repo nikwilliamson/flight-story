@@ -372,6 +372,11 @@ export function DistanceTracks() {
     return { lineObject, headObject, material, dot, place }
   }, [])
   useFrame(({ gl }) => {
+    // Hidden outside the distance section: no draw calls, and no head upload every frame.
+    const shown = distance.fade > 0 && (distance.laps > 0 || distance.moon > 0)
+    line.lineObject.visible = shown
+    line.headObject.visible = shown
+    if (!shown) return
     line.material.uniforms.uOpacity.value = distance.fade * LINE_OPACITY
     const u = distance.moon
     // Lapping: the line grows from Orlando. Unspooling: tail and head slide on together until the coil is gone and

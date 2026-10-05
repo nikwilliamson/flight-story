@@ -5,6 +5,7 @@ import { palette } from '../theme'
 import { sunDirection } from './light'
 import { TERRAIN } from './terrain'
 import { noiseGlsl } from './noise'
+import { QUALITY } from './quality'
 
 /** Outer edge of the atmosphere volume; far enough out that the wide haze has faded to nothing. */
 const TOP = 1.5
@@ -38,7 +39,8 @@ const fragmentShader = /* glsl */ `
 
   const float H_LIMB = 0.028;
   const float H_HALO = 0.16;
-  const int STEPS = 28;
+  // Halved on phones (QUALITY): under the scattering this glow is only the wide soft halo, so it holds up.
+  const int STEPS = ${QUALITY.glowSteps};
 
   // Distances along the ray to the near and far intersections with a sphere at the origin; x > y when missed.
   vec2 sphere(vec3 ro, vec3 rd, float r) {

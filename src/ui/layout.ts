@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Stage } from '../state/store'
+import { size, space } from './tokens'
 
 export interface Layout {
   /** Where the globe is framed. */
@@ -14,14 +15,14 @@ export interface Layout {
 const PHONE_MAX = 820
 /** Phones pin the globe to the top 44% of the screen, cards below it (wireframe). */
 const PHONE_STAGE = 0.44
-const GUTTER = 16
+const GUTTER = space.l
 
 export function layoutFor(width: number, height: number): Layout {
   if (width <= PHONE_MAX) {
     const stageHeight = Math.round(height * PHONE_STAGE)
     return {
       stage: { x: 0, y: 0, width, height: stageHeight },
-      card: { x: GUTTER, y: stageHeight + 8, width: width - 2 * GUTTER, height: height - stageHeight - 8 - GUTTER },
+      card: { x: GUTTER, y: stageHeight + GUTTER, width: width - 2 * GUTTER, height: height - stageHeight - 2 * GUTTER },
       scale: Math.min(1, width / 430),
       phone: true,
     }
@@ -38,21 +39,25 @@ export function layoutFor(width: number, height: number): Layout {
   }
 }
 
-/** The tab bar's height in CSS px (before the phone scale) and its top on desktop. */
-export const TAB_HEIGHT = 32
-const TAB_TOP = 24
+/** The tab bar's top on desktop. Its pills are full size everywhere (size.pill); phones scroll the row instead. */
+const TAB_TOP = space.xl
 
 /** Where the tab bar sits: across the top of the page on desktop, along the bottom of the pinned globe on phones. */
-export const tabBarTop = (layout: Layout) => (layout.phone ? layout.stage.height - (TAB_HEIGHT + 8) * layout.scale : TAB_TOP)
-export const tabBarBottom = (layout: Layout) => tabBarTop(layout) + TAB_HEIGHT * layout.scale
+export const tabBarTop = (layout: Layout) => (layout.phone ? layout.stage.height - size.pill - space.s : TAB_TOP)
+export const tabBarBottom = (layout: Layout) => tabBarTop(layout) + size.pill
 
 /** The window size, for the HTML on top of the canvas. */
 export function useViewport() {
   const [size, setSize] = useState(() => ({ width: innerWidth, height: innerHeight }))
   useEffect(() => {
-    const resize = () => setSize({ width: innerWidth, height: innerHeight })
+    const resize = () => setSize((s) => (s.width === innerWidth && s.height === innerHeight ? s : { width: innerWidth, height: innerHeight }))
+    // iOS resizes the visual viewport (toolbar in and out) without always firing a window resize.
     addEventListener('resize', resize)
-    return () => removeEventListener('resize', resize)
+    visualViewport?.addEventListener('resize', resize)
+    return () => {
+      removeEventListener('resize', resize)
+      visualViewport?.removeEventListener('resize', resize)
+    }
   }, [])
   return size
 }

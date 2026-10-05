@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
-import { useFrame, useLoader, useThree } from '@react-three/fiber'
-import { DataTexture, LinearFilter, LinearMipmapLinearFilter, RedFormat, ShaderMaterial, TextureLoader, Vector3, Vector4, type Texture } from 'three'
+import { useFrame, useLoader } from '@react-three/fiber'
+import { LinearFilter, LinearMipmapLinearFilter, ShaderMaterial, TextureLoader, Vector3, Vector4, type Texture } from 'three'
 import topoUrl from '../assets/topo_2048.png'
-import lightsUrl from '../assets/lights_viirs.png'
+import lights4096Url from '../assets/lights_4096.png'
+import lights2048Url from '../assets/lights_2048.png'
 import detailUrl from '../assets/lights_florida.png'
 import { palette } from '../theme'
 import { sunDirection } from './light'
@@ -10,6 +11,13 @@ import { TERRAIN, terrainGlsl } from './terrain'
 import { noiseGlsl } from './noise'
 import { RouteField } from './routeField'
 import { landedAt, timeline } from '../story/timeline'
+import { coarse, QUALITY } from './quality'
+
+/**
+ * Grayscale, pre-shrunk offline (scripts/build_lights.py) so it loads straight into a texture: the shader reads .r.
+ * Phones take the 2048 map; at their screen sizes the 4096 one would only ever be read from its mipmaps.
+ */
+const lightsUrl = coarse ? lights2048Url : lights4096Url
 
 /** lon0, lat0, lon1, lat1 of the sharper lights patch. Keep in step with BOX in scripts/build_lights_detail.py. */
 const DETAIL_BOX = [-88, 23, -76, 33] as const
@@ -153,7 +161,7 @@ const fragmentShader = /* glsl */ `
       float depth = 0.06 + 0.14 * fk * fk;
       vec3 drift = vec3(sin(t * 0.7 + fk), t * (0.5 + 0.3 * fk), cos(t * 0.6 - fk * 2.0)) * 0.6;
       vec3 stir = vec3(sin(uTime * 0.5 + fk * 1.7), cos(uTime * 0.41 + fk), sin(uTime * 0.33 - fk)) * route * 0.6;
-      fog += fbm((vObj + into * depth) * 1.6 + drift + stir, 3) * (1.0 - 0.25 * fk);
+      fog += fbm((vObj + into * depth) * 1.6 + drift + stir, ${QUALITY.fogOctaves}) * (1.0 - 0.25 * fk);
     }
     fog = smoothstep(0.35, 1.45, fog);
     float facing = max(dot(vObj, -into), 0.0);
@@ -183,34 +191,8 @@ function prepare(texture: Texture) {
   return texture
 }
 
-/**
- * The lights map is 8192x4096; uploaded as RGBA it would cost ~180 MB of GPU memory with mipmaps, so keep only
- * the red channel (~45 MB), shrinking first on GPUs that cap textures below 8192.
- */
-function toRedTexture(source: Texture, maxSize: number): DataTexture {
-  const image = source.image as HTMLImageElement
-  const width = Math.min(image.width, maxSize)
-  const height = Math.round((width * image.height) / image.width)
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })!
-  ctx.drawImage(image, 0, 0, width, height)
-  const rgba = ctx.getImageData(0, 0, width, height).data
-  const red = new Uint8Array(width * height)
-  for (let i = 0; i < red.length; i++) red[i] = rgba[i * 4]
-  source.dispose()
-  const texture = new DataTexture(red, width, height, RedFormat)
-  texture.flipY = true
-  texture.unpackAlignment = 1
-  texture.needsUpdate = true
-  return texture
-}
-
 export function Surface() {
-  const [topo, lightsImage, detail] = useLoader(TextureLoader, [topoUrl, lightsUrl, detailUrl])
-  const maxTextureSize = useThree((s) => s.gl.capabilities.maxTextureSize)
-  const lights = useMemo(() => toRedTexture(lightsImage, maxTextureSize), [lightsImage, maxTextureSize])
+  const [topo, lights, detail] = useLoader(TextureLoader, [topoUrl, lightsUrl, detailUrl])
   const routes = useMemo(() => new RouteField(), [])
   const refresh = useMemo(() => ({ at: 0 }), [])
   const material = useMemo(
@@ -249,8 +231,8 @@ export function Surface() {
   })
   return (
     <mesh material={material} renderOrder={0}>
-      {/* Dense enough (~0.5 deg per quad) for the displacement to resolve mountain ranges. */}
-      <sphereGeometry args={[1, 720, 360]} />
+      {/* Dense enough (~0.5 deg per quad; 1 deg on phones) for the displacement to resolve mountain ranges. */}
+      <sphereGeometry args={[1, ...QUALITY.sphere]} />
     </mesh>
   )
 }

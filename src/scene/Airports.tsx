@@ -9,6 +9,7 @@ import { moveAt, timeline, visitTimes, visitsAt } from '../story/timeline'
 import { distance } from '../story/distance'
 import { PACING } from '../story/pacing'
 import { reducedMotion } from '../motion'
+import { highlight } from './highlight'
 
 const maxLog = Math.log2(1 + Math.max(...visitCounts))
 
@@ -25,6 +26,10 @@ const CORNERS = [-1, -1, 1, -1, 1, 1, -1, 1]
 /** How far a puddle spreads past the disc, in marker pixels; a first visit's spreads further. */
 const PUDDLE_REACH = 14
 const FIRST_PUDDLE = 1.6
+/** Unlit airports fade this far while a set is lit; lit ones grow by LIT_GROW and carry a slow ring (LIT_RING_S a lap). */
+const AIRPORT_DIM = 0.65
+const LIT_GROW = 0.35
+const LIT_RING_S = 2.8
 
 /** Flat decals lying on the ground: each airport is a quad in the surface's tangent plane, so it foreshortens toward the limb. */
 export function Airports() {
@@ -38,6 +43,7 @@ export function Airports() {
     const home = new Float32Array(n)
     const pulse = new Float32Array(n).fill(-1e9)
     const pulseSize = new Float32Array(n).fill(1)
+    const airport = new Float32Array(n)
     const index: number[] = []
     visited.forEach((idx, i) => {
       const a = airports[idx]
@@ -48,6 +54,7 @@ export function Airports() {
         corner.set(CORNERS.slice(c * 2, c * 2 + 2), v * 2)
         weight[v] = Math.log2(1 + visitCounts[idx]) / maxLog
         home[v] = idx === currentHome ? 1 : 0
+        airport[v] = idx
       }
       index.push(i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3)
     })
@@ -58,6 +65,7 @@ export function Airports() {
     g.setAttribute('aHome', new BufferAttribute(home, 1))
     g.setAttribute('aPulse', new BufferAttribute(pulse, 1))
     g.setAttribute('aPulseSize', new BufferAttribute(pulseSize, 1))
+    g.setAttribute('aAirport', new BufferAttribute(airport, 1))
     g.setIndex(index)
     const slotOf = new Int32Array(airports.length).fill(-1)
     visited.forEach((idx, i) => (slotOf[idx] = i))
@@ -79,6 +87,10 @@ export function Airports() {
           uResolutionY: { value: 900 },
           uColor: { value: palette.airport },
           uHome: { value: palette.home },
+          uLit: { value: highlight.airports },
+          uLitWidth: { value: highlight.width },
+          uDim: { value: 0 },
+          uClock: { value: 0 },
         },
         vertexShader: /* glsl */ `
           attribute vec2 aCorner;
@@ -86,6 +98,9 @@ export function Airports() {
           attribute float aHome;
           attribute float aPulse;
           attribute float aPulseSize;
+          attribute float aAirport;
+          uniform sampler2D uLit;
+          uniform float uLitWidth;
           uniform float uNow;
           uniform float uPuddle;
           uniform float uScale;
@@ -96,7 +111,10 @@ export function Airports() {
           varying float vHome;
           varying float vFacing;
           varying vec2 vQ;
+          varying float vLit;
           void main() {
+            ivec2 at = ivec2(int(mod(aAirport, uLitWidth)), int(aAirport / uLitWidth));
+            vLit = texelFetch(uLit, at, 0).r;
             vec3 up = normalize(position);
             vec3 east = normalize(cross(abs(up.y) > 0.999 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0), up));
             vec3 north = cross(up, east);
@@ -105,6 +123,8 @@ export function Airports() {
             // Room for the disc plus glow, the home ring, and a puddle while it spreads.
             float ripple = vAge >= 0.0 && vAge < uPuddle ? 8.0 + ${PUDDLE_REACH.toFixed(1)} * aPulseSize : 0.0;
             float extent = max((mix(10.0, 30.0, max(aWeight, 0.0)) + aHome * 6.0) * 0.5, ripple);
+            // Room for the lit ring.
+            extent = max(extent, vLit > 0.0 ? mix(1.6, 4.6, max(aWeight, 0.0)) * ${(1 + LIT_GROW).toFixed(2)} + 9.0 : 0.0);
             vQ = aCorner * extent;
             // Never bigger than their nominal pixel size at their own depth: with the camera tilted toward the
             // horizon, discs near the eye would otherwise balloon into ellipses.
@@ -122,6 +142,9 @@ export function Airports() {
           uniform float uPuddle;
           uniform vec3 uColor;
           uniform vec3 uHome;
+          uniform float uDim;
+          uniform float uClock;
+          varying float vLit;
           varying float vWeight;
           varying float vHome;
           varying float vFacing;
@@ -142,12 +165,19 @@ export function Airports() {
             // A departure or arrival flashes the disc: a little brighter and bigger, settling back over a moment.
             bool pulsing = vAge >= 0.0 && vAge < uPuddle;
             float flash = pulsing ? exp(-vAge * 5.0) : 0.0;
-            float radius = mix(1.6, 4.6, vWeight);
+            float radius = mix(1.6, 4.6, vWeight) * (1.0 + ${LIT_GROW.toFixed(2)} * vLit);
             float disc = edge(r, radius * (1.0 + 0.25 * flash), 0.0);
             float glow = exp(-max(r - radius, 0.0) / 0.8) * 0.05 * vWeight * (1.0 - disc);
             // The orange ring below decorates the home airport's disc.
             vec3 rgb = uColor * (disc * (0.5 + 0.4 * flash) + glow);
             float a = disc + glow;
+            // Lit (the airports of what the tabs or a chapter light): a brighter disc and a slow ring breathing out
+            // from it. Everything else steps back while a set is lit, as the routes do.
+            rgb *= mix(1.0 - ${AIRPORT_DIM.toFixed(2)} * uDim, 1.6, vLit);
+            float breath = fract(uClock / ${LIT_RING_S.toFixed(1)});
+            float litRing = edge(abs(r - (radius + 2.0 + 6.0 * breath)), 0.5, 0.0) * (1.0 - breath) * vLit * 0.6;
+            rgb += uColor * litRing * (1.0 - disc);
+            a = max(a * mix(1.0 - ${AIRPORT_DIM.toFixed(2)} * uDim, 1.0, vLit), litRing);
             // Home: the same disc, circled by an orange ring that keeps a fixed gap from the disc as it grows and a
             // fixed stroke width, with a faint glow.
             float ringR = radius + 2.2;
@@ -211,6 +241,8 @@ export function Airports() {
     material.uniforms.uNow.value = now
     material.uniforms.uPuddle.value = PACING.puddle
     material.uniforms.uResolutionY.value = size.height
+    material.uniforms.uDim.value = highlight.dim
+    material.uniforms.uClock.value = reducedMotion() ? 0 : now
     // Faded out and skipped entirely while the Moon shot has the screen.
     material.uniforms.uShow.value = distance.routes
     if (mesh.current) mesh.current.visible = distance.routes > 0
