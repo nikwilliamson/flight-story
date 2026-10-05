@@ -192,7 +192,9 @@ const fragmentShader = /* glsl */ `
     vec3 color = vKind > 0.5 && vKind < 1.5 ? uInternational : uDomestic;
     float ghost = uGhost * (vKind < 0.5 ? 0.7 : 1.0);   // dense domestic routes would otherwise wash out
     // During the story the current trip stays bright and everything before it settles into dim history.
-    ghost *= vStart >= uTripStart - 0.001 ? 2.4 : uHistory;
+    // While a group is highlighted the current trip loses its boost too, so every route outside the group sinks to the
+    // same dim history look (Nik), not just the older ones.
+    ghost *= vStart >= uTripStart - 0.001 ? mix(2.4, uHistory, uDim) : uHistory;
     float pattern = 1.0;
     if (vKind > 2.5 && vKind < 3.5) { color = uGround; ghost *= 0.5; pattern = step(0.5, fract(vT * 30.0)); }   // by land
     // Unknown airport: solid, and gone well before the unknown end, so the trail just trails off.

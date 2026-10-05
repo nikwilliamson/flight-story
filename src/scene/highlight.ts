@@ -6,8 +6,8 @@ import { ease } from '../motion'
 
 /** Highlight changes fade, never snap (Nik); the rate is in pacing.ts. */
 const WIDTH = 256
-/** How far unlit legs dim while anything is lit (wireframe uDim). */
-export const DIM = 0.6
+/** How far unlit legs dim below the history look while anything is lit (wireframe uDim). */
+export const DIM = 0.45
 /**
  * Glow density cap (Nik: lighting the busiest things turned into a blob). Lines add up, so a route flown n times in the
  * lit set gets 1/n^ROUTE_FALLOFF of the strength each (n stacked lines then read n^(1-ROUTE_FALLOFF) times as bright as
