@@ -5,8 +5,10 @@ import { airports, currentHome, legs, visitCounts } from '../data'
 import { latLonToVec3 } from '../geo'
 import { palette } from '../theme'
 import { useTerrain } from './terrain'
-import { FLIGHT, legStart, moveAt, STORY_END, timeline, visitTimes, visitsAt } from '../story/timeline'
+import { moveAt, timeline, visitTimes, visitsAt } from '../story/timeline'
 import { distance } from '../story/distance'
+import { PACING } from '../story/pacing'
+import { reducedMotion } from '../motion'
 
 const maxLog = Math.log2(1 + Math.max(...visitCounts))
 
@@ -20,40 +22,22 @@ const LIFT = 0.003
 /** Story seconds the home ring takes to pass from the old home to the new one. */
 const HANDOFF = 0.9
 const CORNERS = [-1, -1, 1, -1, 1, 1, -1, 1]
-/** Story seconds a landing's ripple runs: the first visit's white ring, and the smaller one on every landing. */
-const FIRST_RIPPLE = 1.2
-const LANDING_RIPPLE = 0.9
-
-/** Each airport's landing times, in story order. */
-const landings: number[][] = airports.map(() => [])
-legs.forEach((leg, i) => {
-  if (leg.to >= 0 && leg.to !== leg.from) landings[leg.to].push(legStart[i] + FLIGHT)
-})
-/** The latest landing at an airport at or before t, or -Infinity. */
-const lastLanding = (airport: number, t: number) => {
-  const times = landings[airport]
-  let lo = 0
-  let hi = times.length
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1
-    if (times[mid] <= t) lo = mid + 1
-    else hi = mid
-  }
-  return lo > 0 ? times[lo - 1] : -Infinity
-}
+/** How far a puddle spreads past the disc, in marker pixels; a first visit's spreads further. */
+const PUDDLE_REACH = 14
+const FIRST_PUDDLE = 1.6
 
 /** Flat decals lying on the ground: each airport is a quad in the surface's tangent plane, so it foreshortens toward the limb. */
 export function Airports() {
   const terrain = useTerrain()
-  const { geometry, visited } = useMemo(() => {
+  const { geometry, visited, slotOf } = useMemo(() => {
     const visited = airports.map((_, i) => i).filter((i) => visitCounts[i] > 0)
     const n = visited.length * 4
     const pos = new Float32Array(n * 3)
     const corner = new Float32Array(n * 2)
     const weight = new Float32Array(n)
     const home = new Float32Array(n)
-    const first = new Float32Array(n)
-    const landed = new Float32Array(n).fill(-1e9)
+    const pulse = new Float32Array(n).fill(-1e9)
+    const pulseSize = new Float32Array(n).fill(1)
     const index: number[] = []
     visited.forEach((idx, i) => {
       const a = airports[idx]
@@ -64,7 +48,6 @@ export function Airports() {
         corner.set(CORNERS.slice(c * 2, c * 2 + 2), v * 2)
         weight[v] = Math.log2(1 + visitCounts[idx]) / maxLog
         home[v] = idx === currentHome ? 1 : 0
-        first[v] = visitTimes[idx][0]
       }
       index.push(i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3)
     })
@@ -73,10 +56,12 @@ export function Airports() {
     g.setAttribute('aCorner', new BufferAttribute(corner, 2))
     g.setAttribute('aWeight', new BufferAttribute(weight, 1))
     g.setAttribute('aHome', new BufferAttribute(home, 1))
-    g.setAttribute('aFirst', new BufferAttribute(first, 1))
-    g.setAttribute('aLanded', new BufferAttribute(landed, 1))
+    g.setAttribute('aPulse', new BufferAttribute(pulse, 1))
+    g.setAttribute('aPulseSize', new BufferAttribute(pulseSize, 1))
     g.setIndex(index)
-    return { geometry: g, visited }
+    const slotOf = new Int32Array(airports.length).fill(-1)
+    visited.forEach((idx, i) => (slotOf[idx] = i))
+    return { geometry: g, visited, slotOf }
   }, [terrain])
 
   const material = useMemo(
@@ -88,7 +73,8 @@ export function Airports() {
         side: DoubleSide,
         uniforms: {
           uShow: { value: 1 },
-          uStory: { value: STORY_END },
+          uNow: { value: 0 },
+          uPuddle: { value: PACING.puddle },
           uScale: { value: 1 },
           uResolutionY: { value: 900 },
           uColor: { value: palette.airport },
@@ -98,14 +84,15 @@ export function Airports() {
           attribute vec2 aCorner;
           attribute float aWeight;
           attribute float aHome;
-          attribute float aFirst;
-          attribute float aLanded;
-          uniform float uStory;
+          attribute float aPulse;
+          attribute float aPulseSize;
+          uniform float uNow;
+          uniform float uPuddle;
           uniform float uScale;
           uniform float uResolutionY;
           varying float vWeight;
-          varying float vSince;
-          varying float vLanded;
+          varying float vAge;
+          varying float vPulseSize;
           varying float vHome;
           varying float vFacing;
           varying vec2 vQ;
@@ -113,11 +100,10 @@ export function Airports() {
             vec3 up = normalize(position);
             vec3 east = normalize(cross(abs(up.y) > 0.999 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0), up));
             vec3 north = cross(up, east);
-            vSince = uStory - aFirst;
-            vLanded = uStory - aLanded;
-            // Room for the disc plus glow, the home ring, and the landing ripples while they spread.
-            float ripple = vSince >= 0.0 && vSince < ${FIRST_RIPPLE.toFixed(2)} ? 6.0 + vSince * 22.0 : 0.0;
-            if (vLanded >= 0.0 && vLanded < ${LANDING_RIPPLE.toFixed(2)}) ripple = max(ripple, 5.0 + vLanded * 12.0);
+            vAge = uNow - aPulse;
+            vPulseSize = aPulseSize;
+            // Room for the disc plus glow, the home ring, and a puddle while it spreads.
+            float ripple = vAge >= 0.0 && vAge < uPuddle ? 8.0 + ${PUDDLE_REACH.toFixed(1)} * aPulseSize : 0.0;
             float extent = max((mix(10.0, 30.0, max(aWeight, 0.0)) + aHome * 6.0) * 0.5, ripple);
             vQ = aCorner * extent;
             // Never bigger than their nominal pixel size at their own depth: with the camera tilted toward the
@@ -133,14 +119,15 @@ export function Airports() {
           }`,
         fragmentShader: /* glsl */ `
           uniform float uShow;
+          uniform float uPuddle;
           uniform vec3 uColor;
           uniform vec3 uHome;
           varying float vWeight;
           varying float vHome;
           varying float vFacing;
           varying vec2 vQ;
-          varying float vSince;
-          varying float vLanded;
+          varying float vAge;
+          varying float vPulseSize;
           // Edge band at least one screen pixel wide, so foreshortened discs stay antialiased.
           float edge(float r, float radius, float soft) {
             float w = max(soft, fwidth(r) * 0.75);
@@ -152,11 +139,14 @@ export function Airports() {
             float fade = smoothstep(-0.02, 0.25, vFacing);
             // Visited airport: a flat white disc sized by visits with a crisp, pixel-wide edge (Nik: sharp, not
             // blurry), and only a faint halo for the hubs. Kept under the bloom threshold so it isn't smeared.
+            // A departure or arrival flashes the disc: a little brighter and bigger, settling back over a moment.
+            bool pulsing = vAge >= 0.0 && vAge < uPuddle;
+            float flash = pulsing ? exp(-vAge * 5.0) : 0.0;
             float radius = mix(1.6, 4.6, vWeight);
-            float disc = edge(r, radius, 0.0);
+            float disc = edge(r, radius * (1.0 + 0.25 * flash), 0.0);
             float glow = exp(-max(r - radius, 0.0) / 0.8) * 0.05 * vWeight * (1.0 - disc);
             // The orange ring below decorates the home airport's disc.
-            vec3 rgb = uColor * (disc * 0.5 + glow);
+            vec3 rgb = uColor * (disc * (0.5 + 0.4 * flash) + glow);
             float a = disc + glow;
             // Home: the same disc, circled by an orange ring that keeps a fixed gap from the disc as it grows and a
             // fixed stroke width, with a faint glow.
@@ -165,20 +155,19 @@ export function Airports() {
             float ring = (edge(d, 0.55, 0.35) + exp(-d / 1.6) * 0.18) * vHome;
             rgb = mix(rgb, uHome, ring * (1.0 - disc));
             a = max(a, ring);
-            // First visit: a thin white ring spreads across the ground and fades.
-            bool first = vSince >= 0.0 && vSince < ${FIRST_RIPPLE.toFixed(2)};
-            if (first) {
-              float k = vSince / ${FIRST_RIPPLE.toFixed(2)};
-              float wave = edge(abs(r - (4.0 + vSince * 20.0)), 0.6, 0.6) * (1.0 - k) * (1.0 - k) * 0.8;
-              rgb += vec3(1.0) * wave;
-              a += wave;
-            }
-            // Every other landing: a smaller, fainter blue ring from the disc's edge.
-            if (!first && vLanded >= 0.0 && vLanded < ${LANDING_RIPPLE.toFixed(2)}) {
-              float k = vLanded / ${LANDING_RIPPLE.toFixed(2)};
-              float wave = edge(abs(r - (radius + 1.0 + vLanded * 11.0)), 0.5, 0.0) * (1.0 - k) * (1.0 - k) * 0.6;
-              rgb += uColor * wave;
-              a += wave;
+            // The puddle: two thin rings spread from the disc's edge like a drop in water, easing out as they fade.
+            if (pulsing) {
+              float k = vAge / uPuddle;
+              for (int j = 0; j < 2; j++) {
+                float delay = float(j) * 0.22;
+                float kj = (k - delay) / (1.0 - delay);
+                if (kj <= 0.0 || kj >= 1.0) continue;
+                float spread = 1.0 - (1.0 - kj) * (1.0 - kj);
+                float ringAt = radius + 1.0 + ${PUDDLE_REACH.toFixed(1)} * vPulseSize * spread;
+                float wave = edge(abs(r - ringAt), 0.45, 0.0) * (1.0 - kj) * (1.0 - kj) * (j == 0 ? 0.75 : 0.4);
+                rgb += uColor * wave;
+                a += wave;
+              }
             }
             gl_FragColor = vec4(rgb * fade, a * fade) * uShow;
           }`,
@@ -187,7 +176,40 @@ export function Airports() {
   )
   const last = useMemo(() => ({ time: Number.NaN }), [])
   const mesh = useRef<Mesh>(null)
-  useFrame(({ camera, size }) => {
+  /** Starts a puddle at an airport that a leg just left or reached at story instant k, unless one just started there. */
+  const ripple = (airport: number, k: number, now: number) => {
+    const slot = airport >= 0 ? slotOf[airport] : -1
+    if (slot < 0) return
+    const pulse = geometry.getAttribute('aPulse') as BufferAttribute
+    if (now - pulse.getX(slot * 4) < PACING.puddleGap) return
+    const size = visitTimes[airport][0] === k ? FIRST_PUDDLE : 1
+    const pulseSize = geometry.getAttribute('aPulseSize') as BufferAttribute
+    for (let c = 0; c < 4; c++) {
+      pulse.setX(slot * 4 + c, now)
+      pulseSize.setX(slot * 4 + c, size)
+    }
+    pulse.needsUpdate = true
+    pulseSize.needsUpdate = true
+  }
+  /**
+   * Puddles for every takeoff and landing the playhead passed this frame. Story instant k is when leg k takes off and
+   * leg k - 1 lands. Only forward scrubbing makes them (scrubbing back un-flies legs); a fast scrub keeps the latest
+   * burst, and a cut (chapter jump, the tabs) makes none.
+   */
+  const fire = (from: number, to: number, now: number) => {
+    if (!(to > from) || to - from > PACING.puddleSkip || reducedMotion()) return
+    const hi = Math.min(Math.floor(to), legs.length)
+    const lo = Math.max(Math.floor(from) + 1, hi - PACING.puddleBurst + 1, 0)
+    for (let k = lo; k <= hi; k++) {
+      if (k < legs.length) ripple(legs[k].from, k, now)
+      if (k > 0) ripple(legs[k - 1].to, k, now)
+    }
+  }
+
+  useFrame(({ camera, clock, size }) => {
+    const now = clock.elapsedTime
+    material.uniforms.uNow.value = now
+    material.uniforms.uPuddle.value = PACING.puddle
     material.uniforms.uResolutionY.value = size.height
     // Faded out and skipped entirely while the Moon shot has the screen.
     material.uniforms.uShow.value = distance.routes
@@ -200,13 +222,12 @@ export function Airports() {
     const low = Math.min(1, Math.max(0, (d - 1.2) / 0.25))
     material.uniforms.uScale.value = d >= 1.45 ? 0.4 + 0.6 * near * near * (3 - 2 * near) : 0.12 + 0.28 * low
     const { time } = timeline
-    material.uniforms.uStory.value = time
     if (time === last.time) return
+    fire(last.time, time, now)
     last.time = time
     // Size by visits so far, on the final scale, so hubs grow into their end size; unvisited airports hide.
     const weight = geometry.getAttribute('aWeight') as BufferAttribute
     const home = geometry.getAttribute('aHome') as BufferAttribute
-    const landed = geometry.getAttribute('aLanded') as BufferAttribute
     // On a move the ring fades off the old home as it rises on the new one.
     const move = moveAt(time)
     const k = Math.min(1, Math.max(0, (time - move.time) / HANDOFF))
@@ -215,16 +236,13 @@ export function Airports() {
       const visits = visitsAt(idx, time)
       const w = visits > 0 ? Math.log2(1 + visits) / maxLog : -1
       const h = visits <= 0 ? 0 : idx === move.home ? handed : idx === move.from ? 1 - handed : 0
-      const l = Math.max(lastLanding(idx, time), -1e9)
       for (let c = 0; c < 4; c++) {
         weight.setX(i * 4 + c, w)
         home.setX(i * 4 + c, h)
-        landed.setX(i * 4 + c, l)
       }
     })
     weight.needsUpdate = true
     home.needsUpdate = true
-    landed.needsUpdate = true
   })
   return <mesh ref={mesh} geometry={geometry} material={material} renderOrder={4} frustumCulled={false} />
 }
