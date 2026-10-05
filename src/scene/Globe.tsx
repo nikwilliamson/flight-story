@@ -31,7 +31,8 @@ import { JumpLayer } from './JumpLayer'
 const CLASSIC_GAIN = 0.55
 
 /** Bloom and vignette on fine pointers only. Decided before the first render, so phones never build the composer. */
-const fullEffects = typeof matchMedia !== 'undefined' && !matchMedia('(pointer: coarse)').matches
+/** Bloom and the vignette run everywhere (Nik: phones without them looked like a different globe); #raw turns them off. */
+const fullEffects = !hashParams.has('raw')
 
 /**
  * Draws the globe when postprocessing is off. Any useFrame with a priority takes rendering over from R3F, and the
@@ -45,8 +46,12 @@ function PlainRender() {
   return null
 }
 
-/** Phones start a little under full sharpness: the shaders are fill-rate bound and 3× screens pay for every pixel. */
-const startDpr = () => Math.min(window.devicePixelRatio, window.matchMedia('(pointer: coarse)').matches ? 1.5 : 2)
+/**
+ * Up to 2× everywhere. The cards, numbers and labels are drawn in the scene, so the floor matters as much as the
+ * ceiling: below 1.75 on a 3× phone the text goes soft (Nik), so the frame-budget monitor never drops further.
+ */
+const startDpr = () => Math.min(window.devicePixelRatio, 2)
+const minDpr = () => Math.min(window.devicePixelRatio, 1.75)
 
 export function Globe() {
   const [dpr, setDpr] = useState(startDpr)
@@ -72,9 +77,9 @@ export function Globe() {
       {/* Holds the frame budget: drops the resolution when frames run long, raises it back when there's headroom. */}
       <PerformanceMonitor
         flipflops={3}
-        onDecline={() => setDpr((d) => Math.max(1, d - 0.25))}
+        onDecline={() => setDpr((d) => Math.max(minDpr(), d - 0.25))}
         onIncline={() => setDpr((d) => Math.min(startDpr(), d + 0.25))}
-        onFallback={() => setDpr(1)}
+        onFallback={() => setDpr(minDpr())}
       />
       <Backdrop />
       <Stars />
@@ -102,8 +107,8 @@ export function Globe() {
       <TabDriver />
       <StoryTick />
       {!hashParams.has('noui') && <UiLayer />}
-      {!(fullEffects && !hashParams.has('raw')) && <PlainRender />}
-      {fullEffects && !hashParams.has('raw') && (
+      {!fullEffects && <PlainRender />}
+      {fullEffects && (
         <EffectComposer multisampling={0}>
           <Bloom mipmapBlur intensity={0.8} luminanceThreshold={0.72} luminanceSmoothing={0.25} radius={0.65} />
           <Vignette offset={0.32} darkness={0.72} />
