@@ -70,7 +70,9 @@ export function stepTabs(delta: number) {
   }
   const store = useStory.getState()
   const lit = store.hover ?? store.selection?.legs ?? NONE
-  if (store.highlight !== lit) store.setHighlight(lit)
+  // A hover previews (lighter, no pulse); the selection, or hovering it again, commits.
+  const preview = store.hover !== null && store.hover !== store.selection?.legs
+  if (store.highlight !== lit || store.preview !== preview) store.setHighlight(lit, preview)
 
   // Fly-to: hold a beat once the camera is there, then hand the globe back to the reader.
   if (!flight.shot) return

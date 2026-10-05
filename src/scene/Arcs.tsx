@@ -1,12 +1,13 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { AdditiveBlending, BufferAttribute, BufferGeometry, Mesh, ShaderMaterial, Vector2, Vector3 } from 'three'
+import { AdditiveBlending, BufferAttribute, BufferGeometry, CustomBlending, Mesh, OneFactor, OneMinusSrcAlphaFactor, ShaderMaterial, Vector2, Vector3 } from 'three'
 import { airports, legs } from '../data'
 import { angleBetween, arcPoints, latLonToVec3 } from '../geo'
 import { palette } from '../theme'
 import { useTerrain, type TerrainRadius } from './terrain'
 import { FLIGHT, legStart, STORY_END, timeline } from '../story/timeline'
 import { distance } from '../story/distance'
+import { reducedMotion } from '../motion'
 import { DIM, highlight } from './highlight'
 
 /** Matches aKind in the shader. */
@@ -57,8 +58,40 @@ function collectArcs(terrain: TerrainRadius): ArcSpec[] {
   return arcs
 }
 
+/**
+ * Each flight's arch height: low and proportional for short hops (so they don't spike up when the story camera flies
+ * in close), rising with distance so the long hauls clearly arch over everything else. Repeats of a route fan out a
+ * little (±3%), so a route flown a hundred times reads as a bundle of strands, not one over-bright line.
+ */
+function liftsFor(arcs: ArcSpec[]) {
+  const routeKey = (arc: ArcSpec) => {
+    const [a, b] = [arc.a.toArray().join(), arc.b.toArray().join()]
+    return a < b ? `${a}|${b}` : `${b}|${a}`
+  }
+  const totals = new Map<string, number>()
+  for (const arc of arcs) if (arc.kind !== Kind.Ground) totals.set(routeKey(arc), (totals.get(routeKey(arc)) ?? 0) + 1)
+  const seen = new Map<string, number>()
+  return arcs.map((arc) => {
+    const omega = angleBetween(arc.a, arc.b)
+    if (arc.kind === Kind.Ground) return Math.min(0.004, omega * 0.2)
+    const key = routeKey(arc)
+    const n = totals.get(key)!
+    const k = seen.get(key) ?? 0
+    seen.set(key, k + 1)
+    const fan = n > 1 ? 1 + FAN * (k / (n - 1) - 0.5) : 1
+    return (Math.min(0.03, omega * 0.35) + LONG_LIFT * (omega / Math.PI) ** 1.2) * fan
+  })
+}
+
+/** Long-haul arch: an antipodal route rises this far (globe radii); and how wide repeats of a route fan out. */
+const LONG_LIFT = 0.34
+const FAN = 0.06
+
+/** Where each leg's arcs sit in the index buffer, for drawing the lit ones again in their own pass. */
+export type IndexRanges = Map<number, [number, number][]>
+
 /** One merged ribbon mesh for every arc: 2 vertices per sample, expanded to screen-space width in the shader. */
-function buildGeometry(arcs: ArcSpec[]): BufferGeometry {
+function buildGeometry(arcs: ArcSpec[]): { geometry: BufferGeometry; ranges: IndexRanges } {
   const verts = arcs.length * (SAMPLES + 1) * 2
   const position = new Float32Array(verts * 3)
   const prev = new Float32Array(verts * 3)
@@ -70,12 +103,13 @@ function buildGeometry(arcs: ArcSpec[]): BufferGeometry {
   const span = new Float32Array(verts)
   const legIndex = new Float32Array(verts)
   const index: number[] = []
+  const ranges: IndexRanges = new Map()
+  const lifts = liftsFor(arcs)
   let v = 0
-  for (const arc of arcs) {
+  arcs.forEach((arc, n) => {
     const omega = angleBetween(arc.a, arc.b)
-    // Short hops get a low, proportional arch so they don't spike up when the story camera flies in close.
-    const lift = arc.kind === Kind.Ground ? Math.min(0.004, omega * 0.2) : Math.min(0.03, omega * 0.35) + 0.2 * (omega / Math.PI)
-    const pts = arcPoints(arc.a, arc.b, SAMPLES, lift)
+    const pts = arcPoints(arc.a, arc.b, SAMPLES, lifts[n])
+    const first = index.length
     const base = v
     pts.forEach((p, i) => {
       const pp = pts[Math.max(0, i - 1)]
@@ -97,7 +131,8 @@ function buildGeometry(arcs: ArcSpec[]): BufferGeometry {
         index.push(k, k + 1, k + 2, k + 1, k + 3, k + 2)
       }
     })
-  }
+    ranges.set(arc.leg, [...(ranges.get(arc.leg) ?? []), [first, index.length - first]])
+  })
   const g = new BufferGeometry()
   g.setAttribute('position', new BufferAttribute(position, 3))
   g.setAttribute('aPrev', new BufferAttribute(prev, 3))
@@ -108,9 +143,27 @@ function buildGeometry(arcs: ArcSpec[]): BufferGeometry {
   g.setAttribute('aKind', new BufferAttribute(kind, 1))
   g.setAttribute('aSpan', new BufferAttribute(span, 1))
   g.setAttribute('aLeg', new BufferAttribute(legIndex, 1))
-  g.setIndex(index)
-  return g
+  g.setIndex(new BufferAttribute(new Uint32Array(index), 1))
+  return { geometry: g, ranges }
 }
+
+/** The lit pass: the same vertices, indexed to only the legs that are lit or still fading out. */
+function litIndex(base: BufferGeometry, ranges: IndexRanges, legsLit: readonly number[]) {
+  const src = base.index!.array as Uint32Array
+  let total = 0
+  for (const leg of legsLit) for (const [, count] of ranges.get(leg) ?? []) total += count
+  const out = new Uint32Array(total)
+  let at = 0
+  for (const leg of legsLit)
+    for (const [start, count] of ranges.get(leg) ?? []) {
+      out.set(src.subarray(start, start + count), at)
+      at += count
+    }
+  return new BufferAttribute(out, 1)
+}
+
+/** Seconds a lit leg's direction pulse takes to come round. */
+const PULSE_PERIOD = 2.4
 
 const vertexShader = /* glsl */ `
   uniform vec2 uResolution;
@@ -128,6 +181,7 @@ const vertexShader = /* glsl */ `
   attribute float aLeg;
   varying float vHighlight;
   varying float vShare;
+  varying float vOrder;
   varying float vT;
   varying float vSpan;
   varying float vStart;
@@ -141,9 +195,10 @@ const vertexShader = /* glsl */ `
     // World units per screen pixel at this depth, so the ribbon keeps a constant pixel width.
     float pixel = 2.0 * -mv.z / (projectionMatrix[1][1] * uResolution.y);
     ivec2 texel = ivec2(int(mod(aLeg, uHighlightWidth)), int(aLeg / uHighlightWidth));
-    vec2 lit = texelFetch(uHighlight, texel, 0).rg;
+    vec3 lit = texelFetch(uHighlight, texel, 0).rgb;
     vHighlight = lit.r;
     vShare = lit.g;
+    vOrder = lit.b;
     // Lit legs keep the same width (Nik): they stand out by colour, not weight.
     float width = uWidth * (aKind > 2.5 && aKind < 3.5 ? 0.8 : 1.0);
     // One extra pixel for the antialiased edge the fragment shader feathers.
@@ -170,7 +225,11 @@ const fragmentShader = /* glsl */ `
   uniform vec3 uDomestic;
   uniform vec3 uInternational;
   uniform vec3 uGround;
+  uniform vec3 uSlate;
   uniform float uClose;
+  uniform float uPass;
+  uniform float uClock;
+  uniform float uPulse;
   varying float vSide;
   varying float vWidth;
   varying float vT;
@@ -179,6 +238,7 @@ const fragmentShader = /* glsl */ `
   varying float vSpan;
   varying float vHighlight;
   varying float vShare;
+  varying float vOrder;
   void main() {
     float age = (uTime - vStart) / uFlight;             // in flight-durations since takeoff
     float lin = clamp(age, 0.0, 1.0);
@@ -218,8 +278,20 @@ const fragmentShader = /* glsl */ `
     // Only a touch brighter than a line of the current chapter (Nik): white, not a glare.
     // Each lit line carries only its share of the glow, so the busiest sets don't stack into one bloomed blob.
     float lit = max(a, min(1.0, uGhost * 2.6) * apex * max(flown, uReveal) * pattern) * vShare;
-    a = mix(a * (1.0 - ${DIM.toFixed(2)} * uDim), lit, vHighlight);
-    color = mix(color, vec3(1.0), vHighlight);
+    // A committed set shows its direction: a soft pulse runs along each lit leg from takeoff to landing, the legs
+    // taking turns in their own order like a relay.
+    float run = fract(uClock / ${PULSE_PERIOD.toFixed(1)} - vOrder * 0.6);
+    lit *= 1.0 + 0.9 * uPulse * smoothstep(0.1, 0.0, abs(vT - run)) * max(flown, uReveal);
+    if (uPass < 0.5) {
+      // The field: while a set is lit, everything else dims and drains toward slate, so white reads against grey,
+      // not against cyan and amber.
+      a *= (1.0 - ${DIM.toFixed(2)} * uDim) * (1.0 - vHighlight);
+      color = mix(color, uSlate, 0.7 * uDim);
+    } else {
+      // The lit pass, drawn over the field (not added into it), white.
+      a = lit * vHighlight;
+      color = vec3(1.0);
+    }
     // Feathered edge, about a pixel wide, so the ribbon reads smooth rather than stair-stepped.
     a *= clamp((1.0 - abs(vSide)) * (vWidth + 1.0) * 0.5 + 0.25, 0.0, 1.0);
     gl_FragColor = vec4(color * a, a) * uShow;
@@ -229,14 +301,19 @@ const fragmentShader = /* glsl */ `
 /** Route width in CSS px at the opening view (Nik: 1.1 read too thin). */
 const WIDTH = 1.6
 
-function makeMaterial() {
+function makeMaterial(pass: 0 | 1) {
   return new ShaderMaterial({
     vertexShader,
     fragmentShader,
     transparent: true,
     depthWrite: false,
-    blending: AdditiveBlending,
+    // The field adds up like light; the lit pass lies over it (premultiplied "over"), so a busy set can't stack into a blob.
+    ...(pass ? { blending: CustomBlending, blendSrc: OneFactor, blendDst: OneMinusSrcAlphaFactor } : { blending: AdditiveBlending }),
     uniforms: {
+      uPass: { value: pass },
+      uClock: { value: 0 },
+      uPulse: { value: 0 },
+      uSlate: { value: palette.slate },
       uShow: { value: 1 },
       uResolution: { value: new Vector2() },
       uWidth: { value: WIDTH },
@@ -259,28 +336,51 @@ function makeMaterial() {
 
 export function Arcs() {
   const terrain = useTerrain()
-  const geometry = useMemo(() => buildGeometry(collectArcs(terrain)), [terrain])
-  const material = useMemo(makeMaterial, [])
+  const { geometry, ranges } = useMemo(() => buildGeometry(collectArcs(terrain)), [terrain])
+  const lit = useMemo(() => {
+    const g = new BufferGeometry()
+    for (const [name, attr] of Object.entries(geometry.attributes)) g.setAttribute(name, attr)
+    return g
+  }, [geometry])
+  const materials = useMemo(() => [makeMaterial(0), makeMaterial(1)] as const, [])
   const { size, viewport } = useThree()
   const mesh = useRef<Mesh>(null)
-  useFrame(({ camera }) => {
-    material.uniforms.uDim.value = highlight.dim
-    // Faded out and skipped entirely while the Moon shot has the screen.
-    material.uniforms.uShow.value = distance.routes
-    if (mesh.current) mesh.current.visible = distance.routes > 0
-    material.uniforms.uResolution.value.set(size.width * viewport.dpr, size.height * viewport.dpr)
+  const litMesh = useRef<Mesh>(null)
+  const version = useRef(-1)
+  useFrame(({ camera, clock }) => {
+    if (highlight.version !== version.current) {
+      version.current = highlight.version
+      lit.setIndex(litIndex(geometry, ranges, highlight.members))
+    }
     // 0 at the opening view, 1 near the ground: lines thicken a little and stop tapering as the camera closes in.
-    const close = Math.min(1, Math.max(0, (3 - camera.position.length()) / 1.7))
-    material.uniforms.uClose.value = close * close * (3 - 2 * close)
-    material.uniforms.uWidth.value = WIDTH * (1 + 0.5 * material.uniforms.uClose.value) * viewport.dpr
+    const c = Math.min(1, Math.max(0, (3 - camera.position.length()) / 1.7))
+    const close = c * c * (3 - 2 * c)
     const { time, focusFrom, reveal } = timeline
-    material.uniforms.uTime.value = time
-    material.uniforms.uReveal.value = reveal ? 1 : 0
     // The finished globe has no current chapter: everything shows at its settled brightness.
     const done = time >= STORY_END || !Number.isFinite(focusFrom)
-    material.uniforms.uTripStart.value = done ? 1e9 : focusFrom
-    material.uniforms.uHistory.value = done ? 1 : 0.7
+    for (const material of materials) {
+      const u = material.uniforms
+      u.uDim.value = highlight.dim
+      u.uPulse.value = reducedMotion() ? 0 : highlight.commit
+      u.uClock.value = clock.elapsedTime
+      // Faded out and skipped entirely while the Moon shot has the screen.
+      u.uShow.value = distance.routes
+      u.uResolution.value.set(size.width * viewport.dpr, size.height * viewport.dpr)
+      u.uClose.value = close
+      u.uWidth.value = WIDTH * (1 + 0.5 * close) * viewport.dpr
+      u.uTime.value = time
+      u.uReveal.value = reveal ? 1 : 0
+      u.uTripStart.value = done ? 1e9 : focusFrom
+      u.uHistory.value = done ? 1 : 0.7
+    }
+    if (mesh.current) mesh.current.visible = distance.routes > 0
+    if (litMesh.current) litMesh.current.visible = distance.routes > 0 && highlight.members.length > 0
   })
   // Depth-tested against the globe body, so routes over the far side stay hidden.
-  return <mesh ref={mesh} geometry={geometry} material={material} renderOrder={3} frustumCulled={false} />
+  return (
+    <>
+      <mesh ref={mesh} geometry={geometry} material={materials[0]} renderOrder={3} frustumCulled={false} />
+      <mesh ref={litMesh} geometry={lit} material={materials[1]} renderOrder={3.5} frustumCulled={false} />
+    </>
+  )
 }
