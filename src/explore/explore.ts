@@ -26,8 +26,24 @@ export function tabOf(id: string): TabId {
   return 'explore'
 }
 
-/** The tabs are on once the story's last card has taken over. */
+/** The tabs' panels are live at the story's end, where its last card has taken over, and wherever a tab is open. */
 export const atEnd = () => scroll.active === CHAPTERS.length - 1
+
+/** Opens a tab from anywhere: the tabs are always on (Nik). The journey keeps its place; the globe shows the whole log. */
+export function openTab(tab: TabId) {
+  useStory.getState().setTab(tab)
+  flight.shot = null
+  history.replaceState(null, '', `#${tab}`)
+}
+
+/** Closes the tab, back to the journey where the reader left it. */
+export function backToStory() {
+  const store = useStory.getState()
+  store.setTab(null)
+  store.setSelection(null)
+  flight.shot = null
+  history.replaceState(null, '', location.pathname + location.search)
+}
 
 const MIN_ZOOM = 1
 const MAX_ZOOM = 9

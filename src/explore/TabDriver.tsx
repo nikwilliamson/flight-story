@@ -30,11 +30,10 @@ export function TabDriver() {
     const row = rowFor(id)
     let timer = 0
     if (tab || row) {
-      // Wait for the story to be laid out, then go straight to its end, where the tabs live.
+      // Wait for the story to be laid out, then open the tab over the journey's start.
       timer = window.setInterval(() => {
         if (!scroll.plan) return
         clearInterval(timer)
-        window.scrollTo(0, document.documentElement.scrollHeight)
         useStory.getState().setTab(tab ?? tabOf(id))
         pending = row ?? null
       }, 100)
@@ -53,6 +52,9 @@ export function TabDriver() {
   }, [])
 
   useFrame((_, delta) => {
+    // The journey holds still under an open tab: the page doesn't scroll until Journey is back.
+    const locked = useStory.getState().tab !== null ? 'hidden' : ''
+    if (document.documentElement.style.overflow !== locked) document.documentElement.style.overflow = locked
     if (!atEnd()) return
     if (pending) {
       select(pending)

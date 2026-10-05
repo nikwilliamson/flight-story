@@ -127,6 +127,7 @@ const vertexShader = /* glsl */ `
   attribute float aSpan;
   attribute float aLeg;
   varying float vHighlight;
+  varying float vShare;
   varying float vT;
   varying float vSpan;
   varying float vStart;
@@ -140,7 +141,9 @@ const vertexShader = /* glsl */ `
     // World units per screen pixel at this depth, so the ribbon keeps a constant pixel width.
     float pixel = 2.0 * -mv.z / (projectionMatrix[1][1] * uResolution.y);
     ivec2 texel = ivec2(int(mod(aLeg, uHighlightWidth)), int(aLeg / uHighlightWidth));
-    vHighlight = texelFetch(uHighlight, texel, 0).r;
+    vec2 lit = texelFetch(uHighlight, texel, 0).rg;
+    vHighlight = lit.r;
+    vShare = lit.g;
     // Lit legs keep the same width (Nik): they stand out by colour, not weight.
     float width = uWidth * (aKind > 2.5 && aKind < 3.5 ? 0.8 : 1.0);
     // One extra pixel for the antialiased edge the fragment shader feathers.
@@ -175,6 +178,7 @@ const fragmentShader = /* glsl */ `
   varying float vKind;
   varying float vSpan;
   varying float vHighlight;
+  varying float vShare;
   void main() {
     float age = (uTime - vStart) / uFlight;             // in flight-durations since takeoff
     float lin = clamp(age, 0.0, 1.0);
@@ -210,7 +214,8 @@ const fragmentShader = /* glsl */ `
     // Highlight: lit legs fade to white at full strength, everything else dims (both eased on the CPU). In an aside
     // a lit leg the timeline hasn't reached yet fades in whole.
     // Only a touch brighter than a line of the current chapter (Nik): white, not a glare.
-    float lit = max(a, min(1.0, uGhost * 2.6) * apex * max(flown, uReveal) * pattern);
+    // Each lit line carries only its share of the glow, so the busiest sets don't stack into one bloomed blob.
+    float lit = max(a, min(1.0, uGhost * 2.6) * apex * max(flown, uReveal) * pattern) * vShare;
     a = mix(a * (1.0 - ${DIM.toFixed(2)} * uDim), lit, vHighlight);
     color = mix(color, vec3(1.0), vHighlight);
     // Feathered edge, about a pixel wide, so the ribbon reads smooth rather than stair-stepped.
