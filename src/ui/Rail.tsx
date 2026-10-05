@@ -37,6 +37,11 @@ const HALO = 5
 const MOON_KEY = 0.1
 const MAX = 1600
 
+/** How far the rail reaches in from the right edge at full swell, glow included, px (before the phone scale). */
+export const RAIL_REACH = KEY + SWELL + 8 + HALO + 2
+/** The rail's size on phones. */
+export const RAIL_PHONE_SCALE = 0.65
+
 type Track = 'story' | 'laps' | 'moon'
 const TRACKS: Track[] = ['story', 'laps', 'moon']
 
@@ -160,7 +165,7 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
   const top = 1
   const span = height - 2
   const right = width + OVERHANG
-  const scale = phone ? 0.65 : 1
+  const scale = phone ? RAIL_PHONE_SCALE : 1
   const state = useRef({
     plan: null as Plan | null,
     span: 0,

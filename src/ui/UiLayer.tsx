@@ -28,7 +28,7 @@ export function UiLayer() {
       </ScreenLayer>
       <ScreenLayer priority={3}>
         <TabBar layout={layout} />
-        <StoryHud stage={layout.stage} s={layout.scale} />
+        <StoryHud stage={layout.stage} s={layout.scale} phone={layout.phone} />
         <Rail width={width} height={height} phone={layout.phone} />
       </ScreenLayer>
       <ScreenLayer priority={4}>
