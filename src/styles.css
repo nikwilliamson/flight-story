@@ -1,4 +1,4 @@
-/* Full-bleed fixed canvas over an empty scroll spacer. Everything visible is drawn in the scene. */
+/* Full-bleed fixed canvas over an empty scroll spacer. Nearly everything visible is drawn in the scene. */
 :root {
   --space: #03060d;
   color-scheme: dark;
@@ -15,7 +15,7 @@ html::-webkit-scrollbar { display: none; }
 .globe { position: absolute !important; inset: 0; touch-action: pan-y; }
 #scroll-spacer { height: 100vh; }
 
-/* "Show all" and the log: the only HTML on the page, glass to match the scene's cards. */
+/* "Show all" and the log: HTML glass to match the scene's cards. */
 .sheet {
   position: fixed;
   z-index: 10;
@@ -65,3 +65,38 @@ html::-webkit-scrollbar { display: none; }
 .sheet-log .miles::after { content: ' mi'; }
 .sheet-log .places, .sheet-log .craft { grid-column: 1 / -1; font-size: 13.5px; color: #e6eefb; }
 .sheet-log .craft { color: #8ea3c2; }
+
+/* The tabs: HTML chrome over the canvas, glass chips like the scene's (Glass.tsx: edge brightest along the top). */
+.tabs {
+  position: fixed;
+  z-index: 11;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: calc(6px * var(--tab-k));
+  pointer-events: none;
+  animation: tabs-in 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.tab {
+  pointer-events: auto;
+  height: var(--tab-h);
+  padding: 0 calc(13px * var(--tab-k));
+  border-radius: 999px;
+  border: 1px solid rgba(111, 182, 255, 0.14);
+  border-top-color: rgba(111, 182, 255, 0.4);
+  background: linear-gradient(rgba(15, 35, 64, 0.62), rgba(15, 35, 64, 0.5));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #8ea3c2;
+  font: calc(13px * var(--tab-k)) / 1 'Story Body', system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.25s, background-color 0.25s, box-shadow 0.4s;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab:hover { color: #e6eefb; background: rgba(15, 35, 64, 0.95); }
+.tab.on { color: #ffb54a; background: rgba(15, 35, 64, 0.95); box-shadow: 0 0 18px rgba(111, 182, 255, 0.16); }
+.tab:focus-visible { outline: 1px solid #4cc9ff; outline-offset: 2px; }
+@keyframes tabs-in { from { opacity: 0; transform: translateY(-24px); } }
+@media (prefers-reduced-motion: reduce) { .tabs { animation: none; } }

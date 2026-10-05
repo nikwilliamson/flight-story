@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { Stage } from '../state/store'
 
 export interface Layout {
@@ -35,4 +36,23 @@ export function layoutFor(width: number, height: number): Layout {
     scale: 1,
     phone: false,
   }
+}
+
+/** The tab bar's height in CSS px (before the phone scale) and its top on desktop. */
+export const TAB_HEIGHT = 32
+const TAB_TOP = 24
+
+/** Where the tab bar sits: across the top of the page on desktop, along the bottom of the pinned globe on phones. */
+export const tabBarTop = (layout: Layout) => (layout.phone ? layout.stage.height - (TAB_HEIGHT + 8) * layout.scale : TAB_TOP)
+export const tabBarBottom = (layout: Layout) => tabBarTop(layout) + TAB_HEIGHT * layout.scale
+
+/** The window size, for the HTML on top of the canvas. */
+export function useViewport() {
+  const [size, setSize] = useState(() => ({ width: innerWidth, height: innerHeight }))
+  useEffect(() => {
+    const resize = () => setSize({ width: innerWidth, height: innerHeight })
+    addEventListener('resize', resize)
+    return () => removeEventListener('resize', resize)
+  }, [])
+  return size
 }

@@ -4,9 +4,8 @@ import type { Group } from 'three'
 import { atEnd } from '../explore/explore'
 import { panelFor } from '../explore/panels'
 import { useStory } from '../state/store'
-import type { Layout } from './layout'
+import { tabBarBottom, type Layout } from './layout'
 import { StoryCard } from './StoryCard'
-import { tabBarBottom } from './TabBar'
 
 const noop = () => {}
 

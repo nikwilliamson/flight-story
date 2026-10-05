@@ -7,7 +7,6 @@ import { Loader } from './Loader'
 import { ScreenLayer } from './ScreenLayer'
 import { StoryCards } from './StoryCards'
 import { StoryHud } from './StoryHud'
-import { TabBar } from './TabBar'
 import { TabPanel } from './TabPanel'
 
 /**
@@ -29,7 +28,6 @@ export function UiLayer() {
         <TabPanel layout={layout} />
       </ScreenLayer>
       <ScreenLayer priority={3}>
-        <TabBar layout={layout} />
         {journey && <StoryHud stage={layout.stage} s={layout.scale} phone={layout.phone} />}
         {journey && <Rail width={width} height={height} phone={layout.phone} />}
       </ScreenLayer>
