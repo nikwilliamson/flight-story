@@ -16,11 +16,11 @@ const SLIDE = 24
 
 export const tabBarBottom = (layout: Layout) => (layout.phone ? layout.stage.height - 8 : 24 + HEIGHT * layout.scale)
 
-/** The bar's tabs: Story first (lit while no tab is open), then the explore tabs. */
-const BAR: { id: (typeof TABS)[number]['id'] | null; label: string }[] = [{ id: null, label: 'Story' }, ...TABS]
+/** The bar's tabs: Journey (the story) first (lit while no tab is open), then the explore tabs. */
+const BAR: { id: (typeof TABS)[number]['id'] | null; label: string }[] = [{ id: null, label: 'Journey' }, ...TABS]
 
 /**
- * The tabs, always on (Nik), sliding in once the page has loaded: Story, Explore, Trips, Airports, Aircraft,
+ * The tabs, always on (Nik), sliding in once the page has loaded: Journey, Explore, Trips, Airports, Aircraft,
  * Airlines, Log. Desktop: across the top of the card column. Phone: along the bottom of the pinned globe.
  */
 export function TabBar({ layout }: { layout: Layout }) {
@@ -83,7 +83,7 @@ export function TabBar({ layout }: { layout: Layout }) {
               }}
               onClick={(e) => {
                 e.stopPropagation()
-                // Story, or the open tab again, closes it and goes back to where the reader was in the story.
+                // Journey, or the open tab again, closes it and goes back to where the reader was in the story.
                 if (t.id === null || active) backToStory()
                 else openTab(t.id)
               }}

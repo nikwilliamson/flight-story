@@ -32,7 +32,7 @@ export const atEnd = () => scroll.active === CHAPTERS.length - 1
 /** Whether the page is scrolled to the story's end: true from the moment of a jump, a frame before atEnd() is. */
 export const scrolledToEnd = () => !!scroll.plan && window.scrollY >= (scroll.plan.segments.at(-1)?.at ?? 0) - 1
 
-/** Where the reader was in the story when a tab took them to the end, so Story can bring them back. */
+/** Where the reader was in the story when a tab took them to the end, so Journey can bring them back. */
 let storyY: number | null = null
 
 /**
