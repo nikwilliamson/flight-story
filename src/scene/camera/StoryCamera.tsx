@@ -27,6 +27,20 @@ const MAX_TILT = 0.85
 const MAX_YAW = 0.7
 /** Fitted points stay within 1 / FIT_MARGIN of the stage's half-size (v48). */
 const FIT_MARGIN = 1.2
+/**
+ * Following a big chapter: frame the busiest cluster among the last FOLLOW_LEGS legs drawn, re-aimed every FOLLOW_EVERY seconds, never further
+ * than FOLLOW_REACH degrees from the authored shot nor closer in than FOLLOW_ZOOM times its zoom.
+ */
+const FOLLOW_LEGS = 32
+const FOLLOW_EVERY = 0.6
+const FOLLOW_REACH = 35
+const FOLLOW_ZOOM = 1.6
+/** Airports within this many degrees of each other count as one cluster. */
+const FOLLOW_CLUSTER = 22
+/** The camera stays on its cluster while it has at least this share of the busiest one's airports. */
+const FOLLOW_KEEP = 0.75
+/** Legs over which the follow eases in from the authored shot, and back out to it at the end. */
+const FOLLOW_EASE = 12
 /** The globe's slow idle turn (v48 OrbitControls autoRotateSpeed 0.18: about 1.1° a second), eased with zoom. */
 const DRIFT_DEG_PER_S = 1.1
 
@@ -66,7 +80,7 @@ export function StoryCamera() {
   const gl = useThree((s) => s.gl)
   const size = useThree((s) => s.size)
   // Mutable across renders: a resize re-renders this component but must not reset the move in progress.
-  const state = useRef({ target: { ...useStory.getState().shot }, shot: useStory.getState().shot, userTookOver: false, dragging: false, yaw: 0, yawGoal: 0, yawHeld: 0 }).current
+  const state = useRef({ target: { ...useStory.getState().shot }, shot: useStory.getState().shot, userTookOver: false, dragging: false, yaw: 0, yawGoal: 0, yawHeld: 0, followIn: 0 }).current
   const { target } = state
   useEffect(() => {
     view.camera = cam
@@ -145,7 +159,18 @@ export function StoryCamera() {
         state.yaw = yaw
       }
       target.spin = next.spin
+      state.followIn = FOLLOW_EVERY
       Object.assign(goal, { shot: next, lon: target.lon, lat: target.lat, zoom: target.zoom })
+    } else if (next.follow && !state.userTookOver && (state.followIn -= dt) <= 0) {
+      // Re-aimed on a beat, not every frame, and only past the same debounce as a new shot, so the camera glides
+      // between framings instead of chasing every hop.
+      state.followIn = FOLLOW_EVERY
+      const pose = followPose(next, cam, size.width, size.height, useStory.getState().stage)
+      const moved = Math.abs(wrap(pose.lon - target.lon)) >= PACING.minMoveDeg || Math.abs(pose.lat - target.lat) >= PACING.minMoveDeg || Math.abs(Math.log(pose.zoom / target.zoom)) >= PACING.minZoom
+      if (moved) {
+        Object.assign(target, pose)
+        Object.assign(goal, pose)
+      }
     } else if (state.shot.spin && !state.userTookOver) {
       target.lon += (dt * SPIN_DEG_PER_S) / Math.max(1, camera.zoom)
     }
@@ -251,6 +276,78 @@ function yawAlong(i: number, n: Vector3) {
   return MAX_YAW * heading.normalize().dot(side)
 }
 
+const centre = new Vector3()
+const anchor = new Vector3()
+const smooth = (k: number) => (k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k))
+const CLUSTER_COS = Math.cos((FOLLOW_CLUSTER * Math.PI) / 180)
+/** The cluster the follow camera is on, kept until another is clearly busier (hysteresis), so it doesn't flip-flop. */
+const held = new Vector3()
+let holding = false
+
+/** Mean of the points within FOLLOW_CLUSTER of c, written into c; returns how many there were. */
+function gather(points: Vector3[], c: Vector3) {
+  const near = points.filter((p) => p.dot(c) >= CLUSTER_COS)
+  if (!near.length) return near
+  c.set(0, 0, 0)
+  for (const p of near) c.add(p)
+  c.normalize()
+  return near
+}
+
+/**
+ * Where a following shot looks right now: the busiest cluster of airports among the legs just drawn (Osaka's run of
+ * hops around Japan, not the midpoint of the Pacific crossings that bracket it), eased in from the authored shot as the
+ * chapter starts and back out to it as it ends, so the whole chapter is in view once it's drawn.
+ */
+export function followPose(shot: Shot, cam: PerspectiveCamera, width: number, height: number, stage: Frame | null) {
+  const [first, last] = shot.follow!
+  const authored = { lon: shot.lon, lat: shot.lat, zoom: shot.zoom }
+  const now = Math.min(last, Math.floor(timeline.time))
+  const from = Math.max(first, now - FOLLOW_LEGS + 1)
+  const points: Vector3[] = []
+  for (let i = from; i <= now; i++) points.push(...ends(i))
+  const weight = smooth((now - first + 1) / FOLLOW_EASE) * (1 - smooth((timeline.time - (last - FOLLOW_EASE)) / (FOLLOW_EASE + 1)))
+  if (!points.length || weight <= 0) return (holding = false), authored
+
+  // The densest cluster, seeded from each endpoint and taken as its mean; the one already followed stays while it's
+  // nearly as busy.
+  let best: Vector3[] = []
+  for (const seed of points) {
+    const near = gather(points, centre.copy(seed))
+    if (near.length > best.length) {
+      best = near
+      anchor.copy(centre)
+    }
+  }
+  if (holding) {
+    const kept = gather(points, centre.copy(held))
+    if (kept.length >= best.length * FOLLOW_KEEP) {
+      best = kept
+      anchor.copy(centre)
+    }
+  }
+  held.copy(anchor)
+  holding = true
+
+  // Never further than FOLLOW_REACH from the authored shot, so the chapter's framing still reads as its own.
+  const target = centre.copy(anchor)
+  latLonToVec3(shot.lat, shot.lon, 1, anchor)
+  const angle = anchor.angleTo(target)
+  const reach = Math.min(angle, (FOLLOW_REACH * Math.PI) / 180) * weight
+  if (angle > 1e-6) {
+    side.copy(target).addScaledVector(anchor, -anchor.dot(target)).normalize()
+    target.copy(anchor).multiplyScalar(Math.cos(reach)).addScaledVector(side, Math.sin(reach))
+  }
+  const lat = (Math.asin(Math.max(-1, Math.min(1, target.y))) * 180) / Math.PI
+  const lon = lonOf(target)
+  const fitted = fitZoom({ lon, lat, zoom: shot.zoom * FOLLOW_ZOOM }, 0, cam, width, height, stage, shot.zoom, best)
+  const zoom = Math.exp(Math.log(shot.zoom) + (Math.log(Math.max(shot.zoom, fitted)) - Math.log(shot.zoom)) * weight)
+  return { lon, lat, zoom }
+}
+
+/** The longitude of a point on the unit sphere, matching latLonToVec3. */
+const lonOf = (v: Vector3) => (Math.atan2(v.x, v.z) * 180) / Math.PI
+
 const probe = new PerspectiveCamera()
 const point = new Vector3()
 const toPoint = new Vector3()
@@ -259,9 +356,8 @@ const toPoint = new Vector3()
  * The closest zoom, up to the shot's own, at which both ends of every fitted leg land inside the stage once the
  * camera is tilted and turned as it will be, and face the camera. Bisection: fitting only gets easier further out.
  */
-function fitZoom(shot: Shot, yaw: number, cam: PerspectiveCamera, width: number, height: number, stage: Frame | null) {
+function fitZoom(shot: Shot, yaw: number, cam: PerspectiveCamera, width: number, height: number, stage: Frame | null, fallback = shot.zoom, points = shot.fit!.flatMap(ends)) {
   const s = stage ?? { x: 0, y: 0, width, height }
-  const points = shot.fit!.flatMap(ends)
   probe.fov = cam.fov
   probe.aspect = cam.aspect
   const fits = (zoom: number) => {
@@ -282,7 +378,7 @@ function fitZoom(shot: Shot, yaw: number, cam: PerspectiveCamera, width: number,
   let lo = MIN_ZOOM
   let hi = shot.zoom
   // Spread round the globe, nothing fits: keep the authored framing rather than backing off for nothing.
-  if (!fits(lo)) return shot.zoom
+  if (!fits(lo)) return fallback
   for (let k = 0; k < 18; k++) {
     const mid = Math.sqrt(lo * hi)
     if (fits(mid)) lo = mid

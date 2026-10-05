@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useStory } from '../state/store'
+import { useStory, type Shot } from '../state/store'
 import { CHAPTERS, type Chapter } from './chapters'
 import { activeAt, progressAt } from './scrollPlan'
 import { planReady, scroll } from './scrollState'
@@ -14,13 +14,18 @@ import { ease } from '../motion'
 const SNAP_LEGS = 250
 
 const ids = (list: number[] = []) => list.map((id) => id - 1)
-/** Chapters small enough to frame whole keep every leg's airports in view (Nik); big ones keep their authored shot. */
+/**
+ * Chapters small enough to frame whole keep every leg's airports in view (Nik); big ones follow the legs as they draw,
+ * so Osaka's camera isn't left over the ocean while the flying happens in Asia (Nik).
+ */
 const FIT_LEGS = 40
-const SHOTS = CHAPTERS.map((ch) => {
+const SHOTS = CHAPTERS.map((ch): Shot => {
   const lit = ids(ch.highlight)
-  const range = ch.range && !ch.hold && ch.range[1] - ch.range[0] < FIT_LEGS ? Array.from({ length: ch.range[1] - ch.range[0] + 1 }, (_, k) => ch.range![0] - 1 + k) : []
-  const fit = lit.length ? lit : range
-  return fit.length ? { ...ch.shot, fit } : ch.shot
+  if (lit.length) return { ...ch.shot, fit: lit }
+  if (!ch.range || ch.hold) return ch.shot
+  const [first, last] = [ch.range[0] - 1, ch.range[1] - 1]
+  if (last - first + 1 >= FIT_LEGS) return { ...ch.shot, follow: [first, last] }
+  return { ...ch.shot, fit: Array.from({ length: last - first + 1 }, (_, k) => first + k) }
 })
 
 const JUMP_INDEX = CHAPTERS.findIndex((c) => c.jump)
