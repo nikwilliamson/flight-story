@@ -106,10 +106,18 @@ def fetch_pages(username: str, password: str, headed: bool) -> list[str]:
             (By.XPATH, "//input[@type='submit' and @value='SignIn']"))).click()
 
         try:
-            wait.until(ec.element_to_be_clickable(
-                (By.XPATH, "//*[contains(text(), 'FLIGHTDATA')]"))).click()
+            link = wait.until(ec.presence_of_element_located(
+                (By.XPATH, "//a[normalize-space()='FLIGHTDATA']")))
         except TimeoutException:
             sys.exit("Login failed: FLIGHTDATA link never appeared (check username/password).")
+
+        # Navigate rather than click: page_source right after a click can still be
+        # the welcome page. Then wait for an actual flight row to render.
+        driver.get(link.get_attribute("href"))
+        try:
+            wait.until(lambda d: count_rows(d.page_source) > 0)
+        except TimeoutException:
+            print("warning: no flight rows found on FLIGHTDATA", file=sys.stderr)
 
         pages = [driver.page_source]
         print(f"page 1: {count_rows(pages[-1])} flights", file=sys.stderr)
@@ -132,15 +140,19 @@ def fetch_pages(username: str, password: str, headed: bool) -> list[str]:
 
 
 def flight_rows(html: str) -> list[Tag]:
-    """Data rows of the flight table: 3rd tbody inside .container, header row dropped."""
-    container = BeautifulSoup(html, "html.parser").select_one(".container")
-    if container is None:
-        return []
-    bodies = container.find_all("tbody")
-    if len(bodies) < 3:
-        return []
-    rows = bodies[2].find_all("tr", recursive=False)[1:]
-    return [tr for tr in rows if len(tr.find_all("td", recursive=False)) >= 13]
+    """Flight table rows: 13+ cells with a dd.mm.yyyy date in the second one.
+
+    Matching on shape rather than table position keeps headers, nav and the
+    welcome page's stat tables out without depending on nesting depth.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    root = soup.select_one(".container") or soup
+    rows = []
+    for tr in root.find_all("tr"):
+        td = tr.find_all("td", recursive=False)
+        if len(td) >= 13 and DATE.search(td[1].get_text(" ", strip=True)):
+            rows.append(tr)
+    return rows
 
 
 def count_rows(html: str) -> int:
