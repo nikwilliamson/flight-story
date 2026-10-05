@@ -43,6 +43,14 @@ export const PACING = {
   yawHold: 1.2,
   /** Highlight fades, per second (4 = about a second). */
   highlight: 2.5,
+  /** Airport puddles on every takeoff and landing, in real seconds: how long one spreads, and the shortest gap before
+   * the same airport puddles again (busy hubs pulse instead of strobing). */
+  puddle: 1.8,
+  puddleGap: 0.5,
+  /** A fast scrub puddles only its last this-many takeoff/landing instants; a jump of more legs than puddleSkip in one
+   * frame is a cut and makes none. */
+  puddleBurst: 24,
+  puddleSkip: 80,
 } as const
 
 /** Screens of scroll a chapter runs over. */
