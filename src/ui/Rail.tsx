@@ -332,7 +332,7 @@ export function Rail({ width, height, phone }: { width: number; height: number; 
 const trackNow = (): Track => CHAPTERS[scroll.active]?.scene ?? 'story'
 
 function labelFor(k: Key, track: Track) {
-  if (track === 'laps') return `Lap ${k.n + 1} round the Earth`
+  if (track === 'laps') return `Lap ${k.n + 1} around the Earth`
   if (track === 'moon') {
     const trip = k.n * MOON_KEY
     return `Trip ${Math.floor(trip) + 1} · ${trip % 1 < 0.5 ? 'out to the Moon' : 'back to Earth'}`
