@@ -66,6 +66,9 @@ export function Story() {
   return (
     <div ref={el} className={className} style={style}>
       <div className="story-track" style={{ height: plan ? plan.length + viewport : 3 * viewport }}>
+        {/* Once the globe is released it takes the pointer on its stage, but everywhere else still scrolls the story,
+            so the reader can always swipe back up. */}
+        <div className="story-catch" style={{ height: viewport, marginBottom: -viewport, clipPath: outside(layout.stage, size.width, viewport) }} />
         {CHAPTERS.map((chapter, i) => {
           const seg = plan?.segments[i]
           // A section spans the card plus its pin: sticky holds the card at its spot until the section runs out, so the
@@ -84,6 +87,12 @@ export function Story() {
       </div>
     </div>
   )
+}
+
+/** A clip path covering the whole screen except the globe's stage (pointer hits follow the clip). */
+function outside(stage: { x: number; y: number; width: number; height: number }, width: number, height: number) {
+  const { x, y, width: w, height: h } = stage
+  return `path(evenodd, 'M0 0H${width}V${height}H0Z M${x} ${y}h${w}v${h}h${-w}Z')`
 }
 
 function Card({ content, opening }: { content: CardContent; opening: boolean }) {

@@ -24,9 +24,15 @@ export const PACING = {
   hold: 1,
   /** The skydive: its footage scrubs over this much scroll. */
   jump: 3.5,
-  /** The distance section. */
-  laps: 3.5,
+  /**
+   * The distance section. Each runs on a curve rather than evenly: the first lap and the first Moon trip get a full,
+   * slow stroke of their own (about 0.9 and 3.5 screens), then the rest wind on faster and faster, so a flick can't
+   * pass them before they've been seen, and the sheer count still shows (Nik: both were far too easy to skip).
+   */
+  laps: 5,
   moon: 6,
+  /** The distance curve: done = progress ^ windUp. 1 = even; 2.5 gives unit k its start at k^0.4 of the way. */
+  windUp: 2.5,
   /** How tightly the drawing, footage and distance line follow the scroll, per second: lower is smoother and laggier. */
   follow: 5,
   /** Camera damping, per second: lower is a slower, floatier move (camera-spec.md: 2.6). */

@@ -138,8 +138,8 @@ export function stepScroll(delta: number) {
   // The footage scrubs with the jump's scroll; the distance line laps in its first chapter, unspools to the Moon in
   // the second, and is simply finished (or not yet started) anywhere else.
   const jumpTarget = ch.jump ? p : index > JUMP_INDEX ? 1 : 0
-  const lapsTarget = ch.scene === 'laps' ? p : index > LAPS_INDEX ? 1 : 0
-  const moonTarget = ch.scene === 'moon' ? p : index > MOON_INDEX ? 1 : 0
+  const lapsTarget = ch.scene === 'laps' ? p ** PACING.windUp : index > LAPS_INDEX ? 1 : 0
+  const moonTarget = ch.scene === 'moon' ? p ** PACING.windUp : index > MOON_INDEX ? 1 : 0
   jump.progress = ch.jump ? jump.progress + (jumpTarget - jump.progress) * follow : jumpTarget
   distance.laps = ch.scene === 'laps' ? distance.laps + (lapsTarget - distance.laps) * follow : lapsTarget
   distance.moon = ch.scene === 'moon' ? distance.moon + (moonTarget - distance.moon) * follow : moonTarget
