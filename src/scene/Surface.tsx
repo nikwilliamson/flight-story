@@ -3,7 +3,6 @@ import { useFrame, useLoader } from '@react-three/fiber'
 import { LinearFilter, LinearMipmapLinearFilter, ShaderMaterial, TextureLoader, Vector3, Vector4, type Texture } from 'three'
 import topoUrl from '../assets/topo_2048.png'
 import lights4096Url from '../assets/lights_4096.png'
-import lights2048Url from '../assets/lights_2048.png'
 import detailUrl from '../assets/lights_florida.png'
 import { palette } from '../theme'
 import { sunDirection } from './light'
@@ -11,13 +10,13 @@ import { TERRAIN, terrainGlsl } from './terrain'
 import { noiseGlsl } from './noise'
 import { RouteField } from './routeField'
 import { landedAt, timeline } from '../story/timeline'
-import { coarse, QUALITY } from './quality'
+import { QUALITY } from './quality'
 
 /**
  * Grayscale, pre-shrunk offline (scripts/build_lights.py) so it loads straight into a texture: the shader reads .r.
  * Phones take the 2048 map; at their screen sizes the 4096 one would only ever be read from its mipmaps.
  */
-const lightsUrl = coarse ? lights2048Url : lights4096Url
+
 
 /** lon0, lat0, lon1, lat1 of the sharper lights patch. Keep in step with BOX in scripts/build_lights_detail.py. */
 const DETAIL_BOX = [-88, 23, -76, 33] as const
@@ -192,7 +191,7 @@ function prepare(texture: Texture) {
 }
 
 export function Surface() {
-  const [topo, lights, detail] = useLoader(TextureLoader, [topoUrl, lightsUrl, detailUrl])
+  const [topo, lights, detail] = useLoader(TextureLoader, [topoUrl, lights4096Url, detailUrl])
   const routes = useMemo(() => new RouteField(), [])
   const refresh = useMemo(() => ({ at: 0 }), [])
   const material = useMemo(

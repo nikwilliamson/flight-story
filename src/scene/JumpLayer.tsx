@@ -8,8 +8,14 @@ import { CHAPTERS } from '../story/chapters'
 import { JUMP, jump, jumpPhase } from '../story/jump'
 import { scroll } from '../story/scrollState'
 
-/** Halftone cell, CSS px: coarse enough that faces never resolve, fine enough to read as the globe's particles. */
+/**
+ * Halftone cell, CSS px: coarse enough that faces never resolve, fine enough to read as the globe's particles. Phones
+ * get a finer grid, or the small stage holds too few dots to read (Nik).
+ */
 const CELL_PX = 4.5
+const CELL_PX_PHONE = 2.75
+/** How far a tall stage (phones) backs off from cropping the wide clip toward showing all of it: 0 crops, 1 fits. */
+const CONTAIN_TALL = 0.6
 /** Start fetching the atlas this many chapters ahead. */
 const PRELOAD = 2
 const JUMP_INDEX = CHAPTERS.findIndex((c) => c.jump)
@@ -33,6 +39,8 @@ const fragmentShader = /* glsl */ `
   uniform float uDoor;
   uniform float uTime;
   uniform float uCell;
+  uniform float uContain;
+  uniform float uVeil;
   uniform vec2 uStage;
   uniform vec3 uCyan;
   uniform vec3 uAmber;
@@ -56,13 +64,16 @@ const fragmentShader = /* glsl */ `
     vec2 centre = (floor((px + drift) / uCell) + 0.5) * uCell - drift;
     vec2 uv = centre / uStage;
     // Cover the stage, cropping the clip's long side.
+    // A tall stage backs off toward the whole frame (letterboxed), or a phone sees only a sliver of the cabin.
     float stageAspect = uStage.x / uStage.y;
-    vec2 fit = stageAspect > VIDEO_ASPECT ? vec2(1.0, VIDEO_ASPECT / stageAspect) : vec2(stageAspect / VIDEO_ASPECT, 1.0);
-    uv = (uv - 0.5) * fit + 0.5;
+    vec2 cover = stageAspect > VIDEO_ASPECT ? vec2(1.0, VIDEO_ASPECT / stageAspect) : vec2(stageAspect / VIDEO_ASPECT, 1.0);
+    vec2 contain = stageAspect > VIDEO_ASPECT ? cover : vec2(1.0, VIDEO_ASPECT / stageAspect);
+    uv = (uv - 0.5) * mix(cover, contain, uContain) + 0.5;
+    float inFrame = step(0.0, uv.y) * step(uv.y, 1.0) * step(0.0, uv.x) * step(uv.x, 1.0);
     // Crossfade neighbouring frames so the 8 fps atlas scrubs smoothly.
     float f0 = floor(uFrame);
     float luma = mix(frameLuma(f0, uv), frameLuma(min(f0 + 1.0, FRAMES - 1.0), uv), fract(uFrame));
-    luma = smoothstep(0.06, 0.92, luma);
+    luma = smoothstep(0.06, 0.92, luma) * inFrame;
     // Dot area follows brightness; dark cells vanish.
     float radius = 0.5 * sqrt(luma);
     float d = length(px - centre) / uCell;
@@ -75,7 +86,7 @@ const fragmentShader = /* glsl */ `
     // Over, not added (Nik: it disappeared against the bright close-up): a dark veil sinks the globe behind the
     // footage so the dots read, premultiplied so the dots themselves still glow.
     float k = uOpacity * edge.x * edge.y;
-    gl_FragColor = vec4(color * dot * k * (1.0 + uDoor * 1.5), k * (0.55 + 0.45 * dot));
+    gl_FragColor = vec4(color * dot * k * (1.0 + uDoor * 1.5), k * (uVeil + (1.0 - uVeil) * dot));
   }
 `
 
@@ -110,6 +121,8 @@ export function JumpLayer() {
           uDoor: { value: 0 },
           uTime: { value: 0 },
           uCell: { value: CELL_PX },
+          uContain: { value: 0 },
+          uVeil: { value: 0.55 },
           uStage: { value: new Vector2(1, 1) },
           uRect: { value: new Vector4(-1, -1, 1, 1) },
           uCyan: { value: palette.domestic },
@@ -148,7 +161,11 @@ export function JumpLayer() {
       1 - (stage.y / size.height) * 2,
     )
     u.uStage.value.set(stage.width * dpr, stage.height * dpr)
-    u.uCell.value = CELL_PX * dpr
+    const tall = stage.width / stage.height < 1.3
+    u.uCell.value = (tall ? CELL_PX_PHONE : CELL_PX) * dpr
+    u.uContain.value = tall ? CONTAIN_TALL : 0
+    // A phone's stage is mostly bright close-up behind the dots: a darker veil keeps the footage readable.
+    u.uVeil.value = tall ? 0.8 : 0.55
     u.uFrame.value = reducedMotion() ? STILL_FRAME : phase.frame
     u.uOpacity.value = phase.opacity
     u.uDoor.value = phase.door
