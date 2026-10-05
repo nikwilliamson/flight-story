@@ -93,8 +93,13 @@ export function StoryCamera() {
     const degPerPx = () => 180 / (Math.PI * RADIUS_SHARE * Math.min(size.width, size.height) * camera.zoom)
     // During the story the page scrolls under the canvas; the globe only takes the pointer once it's released.
     const live = () => useStory.getState().interactive
+    // The globe is dragged inside its stage only; outside it a swipe scrolls the open panel.
+    const onStage = (e: PointerEvent) => {
+      const stage = useStory.getState().stage
+      return !stage || (e.clientX >= stage.x && e.clientX <= stage.x + stage.width && e.clientY >= stage.y && e.clientY <= stage.y + stage.height)
+    }
     const down = (e: PointerEvent) => {
-      if (!live()) return
+      if (!live() || !onStage(e)) return
       el.setPointerCapture(e.pointerId)
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       state.userTookOver = true

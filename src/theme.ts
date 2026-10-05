@@ -15,7 +15,7 @@ export const palette = {
   slate: new Color('#3a4a66'),
   domestic: new Color('#4cc9ff'),
   international: new Color('#ffb54a'),
-  helicopter: new Color('#ff6fd8'),
+  helicopter: new Color('#5dff8a'),
   home: new Color('#ffb54a'),
   atmosphere: new Color('#2f6bff'),
   atmosphereLow: new Color('#8fd4ff'),
